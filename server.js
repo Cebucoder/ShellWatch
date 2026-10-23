@@ -8,59 +8,58 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Middleware para ma-parse ang JSON payloads gikan sa Webhooks
+app.use(express.json());
 // I-serve ang static files gikan sa 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Socket.io Connection para sa Real-time Logs
-io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-
-    // Function to push live detected threat with GeoIP
-    const pushThreat = async (ip, domain, shellType, payload) => {
-        try {
-            // Resolve IP to GeoLocation via GeoIP API
-            const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
-            const geo = geoRes.data;
-
-            const threatData = {
-                id: 'ws_' + Date.now(),
-                domain: domain,
-                ip: ip,
-                country: geo.country || 'Philippines',
-                code: geo.countryCode || 'PH',
-                lat: geo.lat || 10.3157,
-                lng: geo.lon || 123.8854,
-                shellType: shellType,
-                payload: payload,
-                severity: 'Critical',
-                time: new Date().toLocaleTimeString()
-            };
-
-            // I-send diretso sa connected frontend dashboard
-            socket.emit('threat_alert', threatData);
-        } catch (e) {
-            console.error('GeoIP Resolution Error:', e.message);
+// === REAL HONEYPOT WEBHOOK ENDPOINT ===
+app.post('/api/webhook/attack', async (req, res) => {
+    try {
+        const { ip, domain, shellType, payload } = req.body;
+        
+        if (!ip) {
+            return res.status(400).json({ error: 'Attacker IP is required' });
         }
-    };
 
-    // Simulated threat loop kada 5 segundos para sa connected client
-    const interval = setInterval(() => {
-        pushThreat(
-            '112.198.45.' + Math.floor(Math.random() * 200),
-            'compromised-site-' + Math.floor(Math.random() * 1000) + '.com',
-            Math.random() > 0.5 ? 'WP Shell' : 'PHP WebShell',
-            'WSO WebShell v4 /eval'
-        );
-    }, 5000);
+        // Kuhaon ang tinuod nga GeoLocation sa attacker IP gamit ang ip-api.com
+        const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
+        const geo = geoRes.data;
+
+        const threatData = {
+            id: 'hp_' + Date.now(),
+            domain: domain || 'honeypot-target.com',
+            ip: ip,
+            country: geo.country || 'Unknown',
+            code: geo.countryCode || 'US',
+            lat: geo.lat || 0,
+            lng: geo.lon || 0,
+            shellType: shellType || 'PHP WebShell',
+            payload: payload || 'Unknown Exploit Attempt',
+            severity: 'Critical',
+            time: new Date().toLocaleTimeString()
+        };
+
+        // I-broadcast diretso sa 3D Globe ang T actitud nga attack!
+        io.emit('threat_alert', threatData);
+        
+        console.log(`[REAL ATTACK CAUGHT] IP: ${ip} (${geo.country})`);
+        res.status(200).json({ status: 'success', message: 'Real threat broadcasted' });
+    } catch (e) {
+        console.error('Webhook Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log('Dashboard client connected:', socket.id);
 
     socket.on('disconnect', () => {
-        clearInterval(interval);
-        console.log('Client disconnected:', socket.id);
+        console.log('Dashboard client disconnected:', socket.id);
     });
 });
 
-// Gamita ang PORT nga ihatag sa Render o default sa 3000 kung local
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT} (Real Honeypot Mode)`);
 });
