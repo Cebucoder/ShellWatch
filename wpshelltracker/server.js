@@ -1,42 +1,42 @@
-// Node.js Backend Server (server.js)
-const WebSocket = require('ws');
-const axios = require('axios');
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
-const wss = new WebSocket.Server({ port: 8080 });
-console.log('[ShellWatch Backend] WebSocket Listening on ws://localhost:8080');
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-wss.on('connection', (ws) => {
-    console.log('Client connected to threat stream.');
+// I-serve ang static files gikan sa 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
-    // Function to push live detected threat
-    const pushThreat = async (ip, domain, shellType, payload) => {
-        try {
-            // Resolve IP to GeoLocation via GeoIP API
-            const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
-            const geo = geoRes.data;
+// WebSocket Connection para sa Real-time Logs
+io.on('connection', (socket) => {
+    console.log('Client connected:', socket.id);
 
-            const threatData = {
-                id: 'ws_' + Date.now(),
-                domain: domain,
-                ip: ip,
-                country: geo.country || 'Unknown',
-                code: geo.countryCode || 'US',
-                lat: geo.lat || 0,
-                lng: geo.lon || 0,
-                shellType: shellType, // 'WP', 'PHP', etc.
-                payload: payload,
-                severity: 'Critical',
-                time: 'Just now'
-            };
+    // Mock live threat generator para sa dashboard feed
+    const interval = setInterval(() => {
+        const mockLiveThreat = {
+            domain: "example-compromised-site.com",
+            ip: "192.168." + Math.floor(Math.random() * 255) + "." + Math.floor(Math.random() * 255),
+            country: "Philippines",
+            lat: 10.3157,
+            lng: 123.8854,
+            shell: "WSO Web Shell",
+            severity: "Critical",
+            time: new Date().toLocaleTimeString()
+        };
+        socket.emit('threat_alert', mockLiveThreat);
+    }, 5000); // Mag-send ug update kada 5 segundos
 
-            ws.send(JSON.stringify(threatData));
-        } catch (e) {
-            console.error('GeoIP Resolution Error:', e);
-        }
-    };
+    socket.on('disconnect', () => {
+        clearInterval(interval);
+        console.log('Client disconnected:', socket.id);
+    });
+});
 
-    // Example: Push event every 5 seconds
-    setInterval(() => {
-        pushThreat('112.198.45.101', 'compromised-site.com', 'WP', 'WSO WebShell v4');
-    }, 5000);
+// Gamita ang PORT nga ihatag sa Render o default sa 3000 kung local
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
