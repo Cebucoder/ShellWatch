@@ -488,16 +488,16 @@ wss.on('connection', (ws) => {
          * ====================================================================
          */
         const INITIAL_THREAT_SEEDS = [
-            { id: "e1", country: "United States", code: "US", flag: "🇺🇸", lat: 37.0902, lng: -95.7129, domain: "tech-corp-portal.com", ip: "104.21.88.12", shellType: "WP", payload: "WSO WebShell v4.2.5", severity: "Critical", time: "1 min ago", path: "/wp-content/plugins/revslider/db.php", source: "URLScan Live" },
-            { id: "e2", country: "United States", code: "US", flag: "🇺🇸", lat: 34.0522, lng: -118.2437, domain: "la-finance-group.net", ip: "172.67.142.9", shellType: "PHP", payload: "c99shell.php Injector", severity: "High", time: "3 mins ago", path: "/images/uploads/alfa.php", source: "Honeypot Network" },
-            { id: "e3", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 14.5995, lng: 120.9842, domain: "manila-trade-hub.ph", ip: "112.198.45.101", shellType: "OTHER", payload: "r57shell / PrivEsc Exploit", severity: "Critical", time: "Just now", path: "/assets/css/index.php", source: "URLScan Live" },
-            { id: "e4", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 10.3157, lng: 123.8854, domain: "cebu-logistics-corp.com", ip: "120.28.90.14", shellType: "WP", payload: "WP-Config Backdoor Dropper", severity: "Medium", time: "8 mins ago", path: "/wp-content/uploads/cmd.php", source: "Threat Stream" },
-            { id: "e5", country: "Germany", code: "DE", flag: "🇩🇪", lat: 51.1657, lng: 10.4515, domain: "berlin-auto-engineering.de", ip: "85.214.132.88", shellType: "PHP", payload: "Alfa K1ng WebShell", severity: "High", time: "5 mins ago", path: "/vendor/phpunit/util.php", source: "URLScan Live" },
-            { id: "e6", country: "Japan", code: "JP", flag: "🇯🇵", lat: 35.6762, lng: 139.6503, domain: "tokyo-cyber-systems.jp", ip: "202.214.192.6", shellType: "WP", payload: "XMLRPC Admin Takeover", severity: "High", time: "12 mins ago", path: "/xmlrpc.php", source: "Threat Stream" },
-            { id: "e7", country: "United Kingdom", code: "GB", flag: "🇬🇧", lat: 55.3781, lng: -3.4360, domain: "london-fintech-assets.co.uk", ip: "51.140.88.23", shellType: "OTHER", payload: "IndoXploit Bypasser Shell", severity: "Critical", time: "2 mins ago", path: "/public/downloads/shell.php", source: "URLScan Live" },
-            { id: "e8", country: "Brazil", code: "BR", flag: "🇧🇷", lat: -14.2350, lng: -51.9253, domain: "rio-commerce-store.com.br", ip: "177.12.99.201", shellType: "WP", payload: "WooCommerce RCE Exploit Shell", severity: "High", time: "15 mins ago", path: "/wp-content/uploads/mini-shell.php", source: "Honeypot Network" },
-            { id: "e9", country: "Australia", code: "AU", flag: "🇦🇺", lat: -25.2744, lng: 133.7751, domain: "sydney-mining-group.com.au", ip: "139.130.4.5", shellType: "PHP", payload: "MARIJUANA WebShell", severity: "Medium", time: "22 mins ago", path: "/system/logs/gate.php", source: "Threat Stream" },
-            { id: "e10", country: "India", code: "IN", flag: "🇮🇳", lat: 20.5937, lng: 78.9629, domain: "mumbai-tech-solutions.in", ip: "103.21.124.50", shellType: "WP", payload: "Elementor RCE WebShell", severity: "Critical", time: "4 mins ago", path: "/wp-content/plugins/elementor/shell.php", source: "URLScan Live" }
+            // { id: "e1", country: "United States", code: "US", flag: "🇺🇸", lat: 37.0902, lng: -95.7129, domain: "tech-corp-portal.com", ip: "104.21.88.12", shellType: "WP", payload: "WSO WebShell v4.2.5", severity: "Critical", time: "1 min ago", path: "/wp-content/plugins/revslider/db.php", source: "URLScan Live" },
+            // { id: "e2", country: "United States", code: "US", flag: "🇺🇸", lat: 34.0522, lng: -118.2437, domain: "la-finance-group.net", ip: "172.67.142.9", shellType: "PHP", payload: "c99shell.php Injector", severity: "High", time: "3 mins ago", path: "/images/uploads/alfa.php", source: "Honeypot Network" },
+            // { id: "e3", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 14.5995, lng: 120.9842, domain: "manila-trade-hub.ph", ip: "112.198.45.101", shellType: "OTHER", payload: "r57shell / PrivEsc Exploit", severity: "Critical", time: "Just now", path: "/assets/css/index.php", source: "URLScan Live" },
+            // { id: "e4", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 10.3157, lng: 123.8854, domain: "cebu-logistics-corp.com", ip: "120.28.90.14", shellType: "WP", payload: "WP-Config Backdoor Dropper", severity: "Medium", time: "8 mins ago", path: "/wp-content/uploads/cmd.php", source: "Threat Stream" },
+            // { id: "e5", country: "Germany", code: "DE", flag: "🇩🇪", lat: 51.1657, lng: 10.4515, domain: "berlin-auto-engineering.de", ip: "85.214.132.88", shellType: "PHP", payload: "Alfa K1ng WebShell", severity: "High", time: "5 mins ago", path: "/vendor/phpunit/util.php", source: "URLScan Live" },
+            // { id: "e6", country: "Japan", code: "JP", flag: "🇯🇵", lat: 35.6762, lng: 139.6503, domain: "tokyo-cyber-systems.jp", ip: "202.214.192.6", shellType: "WP", payload: "XMLRPC Admin Takeover", severity: "High", time: "12 mins ago", path: "/xmlrpc.php", source: "Threat Stream" },
+            // { id: "e7", country: "United Kingdom", code: "GB", flag: "🇬🇧", lat: 55.3781, lng: -3.4360, domain: "london-fintech-assets.co.uk", ip: "51.140.88.23", shellType: "OTHER", payload: "IndoXploit Bypasser Shell", severity: "Critical", time: "2 mins ago", path: "/public/downloads/shell.php", source: "URLScan Live" },
+            // { id: "e8", country: "Brazil", code: "BR", flag: "🇧🇷", lat: -14.2350, lng: -51.9253, domain: "rio-commerce-store.com.br", ip: "177.12.99.201", shellType: "WP", payload: "WooCommerce RCE Exploit Shell", severity: "High", time: "15 mins ago", path: "/wp-content/uploads/mini-shell.php", source: "Honeypot Network" },
+            // { id: "e9", country: "Australia", code: "AU", flag: "🇦🇺", lat: -25.2744, lng: 133.7751, domain: "sydney-mining-group.com.au", ip: "139.130.4.5", shellType: "PHP", payload: "MARIJUANA WebShell", severity: "Medium", time: "22 mins ago", path: "/system/logs/gate.php", source: "Threat Stream" },
+            // { id: "e10", country: "India", code: "IN", flag: "🇮🇳", lat: 20.5937, lng: 78.9629, domain: "mumbai-tech-solutions.in", ip: "103.21.124.50", shellType: "WP", payload: "Elementor RCE WebShell", severity: "Critical", time: "4 mins ago", path: "/wp-content/plugins/elementor/shell.php", source: "URLScan Live" }
         ];
 
         // Known Country Geo Center Fallbacks
@@ -1022,7 +1022,8 @@ async function fetchLiveURLScanThreats(
 
         // Live Simulated Event Inflow Engine
         function simulateLiveThreatInflow() {
-            const domains = ['cyber-corp.net', 'finance-hub.ph', 'defense-net.de', 'tokyo-logistics.jp', 'manila-shop.com'];
+            // const domains = ['cyber-corp.net', 'finance-hub.ph', 'defense-net.de', 'tokyo-logistics.jp', 'manila-shop.com'];
+            const domains = [];
             const countries = [COUNTRY_GEO["PH"], COUNTRY_GEO["US"], COUNTRY_GEO["DE"], COUNTRY_GEO["JP"], COUNTRY_GEO["GB"]];
             const countryObj = countries[Math.floor(Math.random() * countries.length)];
             const domain = domains[Math.floor(Math.random() * domains.length)];
