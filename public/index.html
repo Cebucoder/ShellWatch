@@ -822,69 +822,203 @@ wss.on('connection', (ws) => {
          */
 
         // Public URLScan Live Search Fetcher with CORS Proxy Fallback
-        async function fetchLiveURLScanThreats(query = 'filename:shell.php OR filename:wso.php OR wp-content') {
-            state.isFetchingApi = true;
-            document.getElementById('loaderSpinner').classList.remove('hidden');
-            appendAttackLog(`LIVE API: Querying URLScan live threat database for '${query}'...`, 'info');
+        // async function fetchLiveURLScanThreats(query = 'filename:shell.php OR filename:wso.php OR wp-content') {
+        //     state.isFetchingApi = true;
+        //     document.getElementById('loaderSpinner').classList.remove('hidden');
+        //     appendAttackLog(`LIVE API: Querying URLScan live threat database for '${query}'...`, 'info');
+
+        //     try {
+        //         const targetUrl = `https://urlscan.io/api/v1/search/?q=${encodeURIComponent(query)}&size=8`;
+        //         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+        //         const res = await fetch(proxyUrl);
+        //         const data = await res.json();
+        //         const json = JSON.parse(data.contents);
+
+        //         if (json && json.results && json.results.length > 0) {
+        //             appendAttackLog(`SUCCESS: Retrieved ${json.results.length} live scan records from urlscan.io`, 'success');
+
+        //             json.results.forEach(item => {
+        //                 const page = item.page || {};
+        //                 const domain = page.domain || page.url ? new URL(page.url).hostname : 'unknown-host.com';
+        //                 const ip = page.ip || '104.21.12.88';
+        //                 const countryCode = page.country || 'US';
+        //                 const geo = COUNTRY_GEO[countryCode] || { country: "United States", flag: "🇺🇸", lat: 37.09, lng: -95.71 };
+
+        //                 let shellType = 'PHP';
+        //                 if (page.url && page.url.includes('wp-')) shellType = 'WP';
+
+        //                 const newExploit = {
+        //                     id: 'live_' + item._id,
+        //                     country: geo.country,
+        //                     code: countryCode,
+        //                     flag: geo.flag,
+        //                     lat: geo.lat + (Math.random() - 0.5) * 2,
+        //                     lng: geo.lng + (Math.random() - 0.5) * 2,
+        //                     domain: domain,
+        //                     ip: ip,
+        //                     shellType: shellType,
+        //                     payload: page.title || 'Exposed WebShell / Backdoor Script',
+        //                     severity: 'Critical',
+        //                     time: 'Just now',
+        //                     path: page.url ? new URL(page.url).pathname : '/shell.php',
+        //                     source: 'URLScan Live API'
+        //                 };
+
+        //                 // Insert if not duplicate
+        //                 if (!state.exploits.some(x => x.domain === newExploit.domain)) {
+        //                     state.exploits.unshift(newExploit);
+        //                 }
+        //             });
+
+        //             applyFilters();
+        //         } else {
+        //             appendAttackLog('WARN: URLScan query returned empty set. Triggering background simulation fallback.', 'warning');
+        //             simulateLiveThreatInflow();
+        //         }
+        //     } catch (err) {
+        //         console.warn('URLScan Live API Direct call fallback triggered.', err);
+        //         appendAttackLog('LIVE STREAM: API hit CORS limit. Activating Live Telemetry Stream fallback.', 'warning');
+        //         simulateLiveThreatInflow();
+        //     } finally {
+        //         state.isFetchingApi = false;
+        //         document.getElementById('loaderSpinner').classList.add('hidden');
+        //     }
+        // }
+
+        
+async function fetchLiveURLScanThreats(
+    query = 'filename:shell.php OR filename:wso.php OR wp-content'
+) {
+    if (state.isFetchingApi) return;
+
+    state.isFetchingApi = true;
+
+    const loader = document.getElementById('loaderSpinner');
+    if (loader) loader.classList.remove('hidden');
+
+    appendAttackLog(
+        `LIVE API: Querying URLScan for '${query}'...`,
+        'info'
+    );
+
+    try {
+        // Search through your own Node.js backend.
+        const response = await fetch(
+            `/api/urlscan-search?q=${encodeURIComponent(query)}`
+        );
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+            throw new Error(
+                data?.error || `HTTP ${response.status}`
+            );
+        }
+
+        if (!data || !Array.isArray(data.results)) {
+            throw new Error('Invalid URLScan response');
+        }
+
+        if (data.results.length === 0) {
+            appendAttackLog(
+                'URLSCAN: No matching scan records found.',
+                'warning'
+            );
+            return;
+        }
+
+        let added = 0;
+
+        data.results.forEach(item => {
+            const page = item.page || {};
+
+            // URLScan records are historical scans, not proof of an attack.
+            let parsedUrl;
 
             try {
-                const targetUrl = `https://urlscan.io/api/v1/search/?q=${encodeURIComponent(query)}&size=8`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                const candidateUrl = page.url || item.task?.url;
+                if (!candidateUrl) return;
 
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
-                const json = JSON.parse(data.contents);
+                parsedUrl = new URL(candidateUrl);
 
-                if (json && json.results && json.results.length > 0) {
-                    appendAttackLog(`SUCCESS: Retrieved ${json.results.length} live scan records from urlscan.io`, 'success');
-
-                    json.results.forEach(item => {
-                        const page = item.page || {};
-                        const domain = page.domain || page.url ? new URL(page.url).hostname : 'unknown-host.com';
-                        const ip = page.ip || '104.21.12.88';
-                        const countryCode = page.country || 'US';
-                        const geo = COUNTRY_GEO[countryCode] || { country: "United States", flag: "🇺🇸", lat: 37.09, lng: -95.71 };
-
-                        let shellType = 'PHP';
-                        if (page.url && page.url.includes('wp-')) shellType = 'WP';
-
-                        const newExploit = {
-                            id: 'live_' + item._id,
-                            country: geo.country,
-                            code: countryCode,
-                            flag: geo.flag,
-                            lat: geo.lat + (Math.random() - 0.5) * 2,
-                            lng: geo.lng + (Math.random() - 0.5) * 2,
-                            domain: domain,
-                            ip: ip,
-                            shellType: shellType,
-                            payload: page.title || 'Exposed WebShell / Backdoor Script',
-                            severity: 'Critical',
-                            time: 'Just now',
-                            path: page.url ? new URL(page.url).pathname : '/shell.php',
-                            source: 'URLScan Live API'
-                        };
-
-                        // Insert if not duplicate
-                        if (!state.exploits.some(x => x.domain === newExploit.domain)) {
-                            state.exploits.unshift(newExploit);
-                        }
-                    });
-
-                    applyFilters();
-                } else {
-                    appendAttackLog('WARN: URLScan query returned empty set. Triggering background simulation fallback.', 'warning');
-                    simulateLiveThreatInflow();
+                if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                    return;
                 }
-            } catch (err) {
-                console.warn('URLScan Live API Direct call fallback triggered.', err);
-                appendAttackLog('LIVE STREAM: API hit CORS limit. Activating Live Telemetry Stream fallback.', 'warning');
-                simulateLiveThreatInflow();
-            } finally {
-                state.isFetchingApi = false;
-                document.getElementById('loaderSpinner').classList.add('hidden');
+            } catch {
+                return;
             }
+
+            const domain =
+                page.domain ||
+                parsedUrl.hostname ||
+                'unknown-host.com';
+
+            // Do not invent a source IP or attacker location.
+            const ip = page.ip || null;
+            const countryCode = page.country || null;
+            const geo = countryCode
+                ? COUNTRY_GEO[countryCode]
+                : null;
+
+            const isPhpRelated =
+                /\.php(?:$|[?#])/i.test(parsedUrl.pathname) ||
+                /(?:^|\/)wp-content(?:\/|$)/i.test(parsedUrl.pathname);
+
+            const record = {
+                id: 'urlscan_' + (item._id || parsedUrl.href),
+                country: geo?.country || 'Unknown',
+                code: countryCode || '',
+                flag: geo?.flag || '🌐',
+                lat: geo?.lat ?? null,
+                lng: geo?.lng ?? null,
+                domain,
+                ip,
+                shellType: isPhpRelated
+                    ? 'PHP-related URL'
+                    : 'URLScan observation',
+                payload: page.title || parsedUrl.pathname || 'URLScan record',
+                severity: 'Review',
+                time: item.task?.time || 'Unknown',
+                path: parsedUrl.pathname,
+                source: 'URLScan Historical Search'
+            };
+
+            // Deduplicate URLScan records.
+            if (!state.exploits.some(existing => existing.id === record.id)) {
+                state.exploits.unshift(record);
+                added++;
+            }
+        });
+
+        if (added > 0) {
+            appendAttackLog(
+                `URLSCAN: Added ${added} scan records for review.`,
+                'success'
+            );
+            applyFilters();
+        } else {
+            appendAttackLog(
+                'URLSCAN: No new valid records to add.',
+                'warning'
+            );
         }
+
+    } catch (error) {
+        console.error('URLScan search failed:', error);
+
+        appendAttackLog(
+            `URLSCAN ERROR: ${error.message}`,
+            'warning'
+        );
+
+        // Intentionally do not generate fake attack events on API failure.
+    } finally {
+        state.isFetchingApi = false;
+        if (loader) loader.classList.add('hidden');
+    }
+}
+
 
         // Live Simulated Event Inflow Engine
         function simulateLiveThreatInflow() {
