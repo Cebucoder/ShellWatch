@@ -1311,6 +1311,62 @@ async function fetchLiveURLScanThreats(
             appendAttackLog('SYSTEM: ShellWatch Threat Engine online.');
             appendAttackLog('TELEMETRY: Listening for real-world URLScan queries & live backdoor events...');
         });
+
+
+const shellWatchSocket = io();
+
+shellWatchSocket.on('connect', () => {
+    appendAttackLog('CONNECTED: Receiving ShellWatch webhook events.', 'success');
+});
+
+shellWatchSocket.on('connect_error', (error) => {
+    console.error('ShellWatch Socket.IO error:', error.message);
+});
+
+shellWatchSocket.on('threat_alert', (event) => {
+    console.log('Webhook event received:', event);
+
+    const countryCode = event.code || '';
+    const geo = COUNTRY_GEO[countryCode];
+
+    const record = {
+        ...event,
+        id: event.id || `webhook_${Date.now()}`,
+        country: event.country || geo?.country || 'Unknown',
+        code: countryCode,
+        flag: geo?.flag || '🌐',
+        lat: Number.isFinite(event.lat)
+            ? event.lat
+            : (geo?.lat ?? null),
+        lng: Number.isFinite(event.lng)
+            ? event.lng
+            : (geo?.lng ?? null),
+        source: 'PHP Honeypot Webhook'
+    };
+
+    // Avoid adding an event twice.
+    if (state.exploits.some(item => item.id === record.id)) {
+        return;
+    }
+
+    state.exploits.unshift(record);
+
+    // The globe renderer requires numeric coordinates.
+    if (Number.isFinite(record.lat) && Number.isFinite(record.lng)) {
+        applyFilters();
+    } else {
+        renderSidebarCountryList();
+        updateStatsCounters();
+    }
+
+    appendAttackLog(
+        `WEBHOOK: Security event received for ${record.domain} (${record.ip})`,
+        'success'
+    );
+});
+
+
+        
     </script>
 </body>
 
