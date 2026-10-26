@@ -64,7 +64,6 @@
 //     console.log(`Server is running on port ${PORT} (Real Honeypot Mode)`);
 // });
 
-
 'use strict';
 
 const express = require('express');
@@ -78,14 +77,15 @@ const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 
+const PORT = process.env.PORT || 3000;
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const URLSCAN_API_KEY = process.env.URLSCAN_API_KEY;
+
 const io = new Server(server, {
     cors: {
         origin: process.env.DASHBOARD_ORIGIN || false
     }
 });
-
-const PORT = process.env.PORT || 3000;
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 app.disable('x-powered-by');
 
@@ -96,20 +96,28 @@ app.use(express.json({
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Basic health check. Does not expose secrets.
+// --------------------------------------------------
+// HEALTH CHECK
+// --------------------------------------------------
+
 app.get('/api/health', (req, res) => {
     res.set('Cache-Control', 'no-store');
+
     res.json({
         status: 'ok',
-        service: 'ShellWatch'
+        service: 'ShellWatch',
+        urlscanConfigured: Boolean(URLSCAN_API_KEY)
     });
 });
 
-// Compare secrets without a timing-dependent string comparison.
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
 function isValidWebhookSecret(suppliedSecret) {
     if (
         typeof WEBHOOK_SECRET !== 'string' ||
-        WEBHOOK_SECRET.length === 0 ||
+        !WEBHOOK_SECRET ||
         typeof suppliedSecret !== 'string'
     ) {
         return false;
@@ -122,22 +130,166 @@ function isValidWebhookSecret(suppliedSecret) {
         crypto.timingSafeEqual(expected, supplied);
 }
 
-// Safely limit untrusted string fields.
-function cleanString(value, maxLength, fallback) {
+function cleanString(value, maxLength, fallback = '') {
     if (typeof value !== 'string') {
         return fallback;
     }
 
-    return value
+    const cleaned = value
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-        .slice(0, maxLength) || fallback;
+        .trim()
+        .slice(0, maxLength);
+
+    return cleaned || fallback;
 }
 
-// Webhook: called by the PHP security event reporter.
+function isPublicIPv4(ip) {
+    const parts = ip.split('.').map(Number);
+
+    if (
+        parts.length !== 4 ||
+        parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)
+    ) {
+        return false;
+    }
+
+    const [a, b, c] = parts;
+
+    // Exclude private, loopback, link-local, documentation,
+    // benchmarking, multicast, and other reserved ranges.
+    if (
+        a === 0 ||
+        a === 10 ||
+        a === 127 ||
+        a >= 224 ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        (a === 169 && b === 254) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 192 && b === 0) ||
+        (a === 192 && b === 88 && c === 99) ||
+        (a === 198 && (b === 18 || b === 19)) ||
+        (a === 198 && b === 51 && c === 100) ||
+        (a === 203 && b === 0 && c === 113)
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+function isPublicIPv6(ip) {
+    const normalized = ip.toLowerCase();
+
+    if (
+        normalized === '::' ||
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        /^fe[89ab]/.test(normalized) ||
+        normalized.startsWith('ff') ||
+        normalized.startsWith('::ffff:')
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+// --------------------------------------------------
+// URLSCAN SEARCH API
+// This searches historical URLScan results.
+// --------------------------------------------------
+
+app.get('/api/urlscan-search', async (req, res) => {
+    const query = typeof req.query.q === 'string'
+        ? req.query.q.trim()
+        : '';
+
+    if (!query || query.length > 300) {
+        return res.status(400).json({
+            error: 'Invalid search query. Provide a query up to 300 characters.'
+        });
+    }
+
+    if (!URLSCAN_API_KEY) {
+        console.error('[URLScan] URLSCAN_API_KEY is not configured.');
+
+        return res.status(503).json({
+            error: 'URLScan API key is not configured on the server.'
+        });
+    }
+
+    try {
+        const response = await axios.get(
+            'https://urlscan.io/api/v1/search/',
+            {
+                params: {
+                    q: query,
+                    size: 8
+                },
+                headers: {
+                    'api-key': URLSCAN_API_KEY,
+                    'Accept': 'application/json'
+                },
+                timeout: 15000,
+                maxRedirects: 0
+            }
+        );
+
+        const results = Array.isArray(response.data?.results)
+            ? response.data.results
+            : [];
+
+        console.log(
+            `[URLScan] Search successful | Results: ${results.length}`
+        );
+
+        return res.json({
+            status: 'success',
+            total: response.data?.total ?? results.length,
+            results
+        });
+
+    } catch (error) {
+        const upstreamStatus = error.response?.status || null;
+
+        console.error('[URLScan] Search failed:', {
+            status: upstreamStatus,
+            code: error.code || null,
+            message: error.message
+        });
+
+        let message = 'URLScan search request failed.';
+
+        if (upstreamStatus === 401 || upstreamStatus === 403) {
+            message = 'URLScan rejected the API key or access.';
+        } else if (upstreamStatus === 429) {
+            message = 'URLScan rate limit reached. Try again later.';
+        } else if (error.code === 'ECONNABORTED') {
+            message = 'URLScan request timed out.';
+        } else if (!upstreamStatus) {
+            message = 'Could not connect to URLScan. Check server connectivity.';
+        }
+
+        return res.status(502).json({
+            error: message,
+            upstreamStatus,
+            code: error.code || null
+        });
+    }
+});
+
+// --------------------------------------------------
+// PHP SECURITY WEBHOOK
+// Receives authenticated security events.
+// --------------------------------------------------
+
 app.post('/api/webhook/attack', async (req, res) => {
     try {
         if (!WEBHOOK_SECRET) {
             console.error('[ShellWatch] WEBHOOK_SECRET is not configured.');
+
             return res.status(503).json({
                 error: 'Webhook not configured'
             });
@@ -172,79 +324,41 @@ app.post('/api/webhook/attack', async (req, res) => {
             'Security event detected'
         );
 
-        // Geolocation is optional. Never let a lookup failure
-        // prevent an authenticated security event from being reported.
         let country = 'Unknown';
         let code = '';
         let lat = null;
         let lng = null;
 
-        // Avoid unnecessary lookups for private, loopback, or reserved IPs.
-        const isPublicIPv4 = (address) => {
-            const parts = address.split('.').map(Number);
-
-            if (parts.length !== 4 || parts.some(n => n < 0 || n > 255)) {
-                return false;
-            }
-
-            const [a, b] = parts;
-
-            return !(
-                a === 0 ||
-                a === 10 ||
-                a === 127 ||
-                a >= 224 ||
-                (a === 100 && b >= 64 && b <= 127) ||
-                (a === 169 && b === 254) ||
-                (a === 172 && b >= 16 && b <= 31) ||
-                (a === 192 && b === 168) ||
-                (a === 192 && b === 0) ||
-                (a === 198 && (b === 18 || b === 19)) ||
-                (a === 198 && b === 51) ||
-                (a === 203 && b === 0)
-            );
-        };
-
-        const isPublicIPv6 = (address) => {
-            const normalized = address.toLowerCase();
-
-            // Exclude loopback, unspecified, unique-local, link-local,
-            // IPv4-mapped addresses, and multicast addresses.
-            if (
-                normalized === '::' ||
-                normalized === '::1' ||
-                normalized.startsWith('fc') ||
-                normalized.startsWith('fd') ||
-                /^fe[89ab]/.test(normalized) ||
-                normalized.startsWith('::ffff:') ||
-                normalized.startsWith('ff')
-            ) {
-                return false;
-            }
-
-            return true;
-        };
-
-        const publicIp = net.isIP(ip) === 4
+        const ipVersion = net.isIP(ip);
+        const publicIp = ipVersion === 4
             ? isPublicIPv4(ip)
             : isPublicIPv6(ip);
 
+        // Geolocation is optional and must not block event reporting.
         if (publicIp) {
             try {
-                const response = await axios.get(
+                const geoResponse = await axios.get(
                     `https://ipwho.is/${encodeURIComponent(ip)}`,
                     {
                         timeout: 2500,
-                        maxRedirects: 0,
-                        responseType: 'json'
+                        maxRedirects: 0
                     }
                 );
 
-                const geo = response.data;
+                const geo = geoResponse.data;
 
                 if (geo && geo.success === true) {
-                    country = cleanString(geo.country, 100, 'Unknown');
-                    code = cleanString(geo.country_code, 2, '');
+                    country = cleanString(
+                        geo.country,
+                        100,
+                        'Unknown'
+                    );
+
+                    code = cleanString(
+                        geo.country_code,
+                        2,
+                        ''
+                    );
 
                     if (
                         typeof geo.latitude === 'number' &&
@@ -283,7 +397,7 @@ app.post('/api/webhook/attack', async (req, res) => {
             source: 'PHP Honeypot Webhook'
         };
 
-        // Broadcast only after authentication and validation.
+        // Broadcast the authenticated, validated event to connected dashboards.
         io.emit('threat_alert', threatData);
 
         console.log(
@@ -305,26 +419,37 @@ app.post('/api/webhook/attack', async (req, res) => {
     }
 });
 
-// Handle malformed JSON without crashing the server.
+// --------------------------------------------------
+// ERROR HANDLING
+// --------------------------------------------------
+
 app.use((err, req, res, next) => {
+    if (res.headersSent) {
+        return next(err);
+    }
+
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
         return res.status(400).json({
-            error: 'Invalid JSON request body'
+            error: 'Invalid JSON request body.'
         });
     }
 
     if (err && err.status === 413) {
         return res.status(413).json({
-            error: 'Request body too large'
+            error: 'Request body too large.'
         });
     }
 
     console.error('[ShellWatch] Request error:', err.message);
 
     return res.status(500).json({
-        error: 'Internal server error'
+        error: 'Internal server error.'
     });
 });
+
+// --------------------------------------------------
+// SOCKET.IO DASHBOARD CONNECTIONS
+// --------------------------------------------------
 
 io.on('connection', (socket) => {
     console.log('[ShellWatch] Dashboard connected:', socket.id);
@@ -334,60 +459,17 @@ io.on('connection', (socket) => {
     });
 });
 
+// --------------------------------------------------
+// START SERVER LAST
+// --------------------------------------------------
+
 server.listen(PORT, () => {
     console.log(`[ShellWatch] Server listening on port ${PORT}`);
-});
-
-
-app.get('/api/urlscan-search', async (req, res) => {
-    try {
-        const query = req.query.q;
-
-        if (
-            typeof query !== 'string' ||
-            query.length < 1 ||
-            query.length > 300
-        ) {
-            return res.status(400).json({
-                error: 'Invalid search query'
-            });
-        }
-
-        const headers = {};
-
-        if (process.env.URLSCAN_API_KEY) {
-            headers['api-key'] = process.env.URLSCAN_API_KEY;
-        }
-
-        const response = await axios.get(
-            'https://urlscan.io/api/v1/search/',
-            {
-                params: {
-                    q: query,
-                    size: 8
-                },
-                headers,
-                timeout: 15000
-            }
-        );
-
-        res.json({
-            status: 'success',
-            total: response.data.total ?? 0,
-            results: response.data.results ?? []
-        });
-    } catch (error) {
-        const upstreamStatus = error.response?.status;
-
-        console.error(
-            'URLScan API error:',
-            upstreamStatus || error.code || error.message
-        );
-
-        res.status(502).json({
-            error: 'URLScan API request failed',
-            upstreamStatus: upstreamStatus || null
-        });
-    }
+    console.log(
+        `[ShellWatch] URLScan API key configured: ${Boolean(URLSCAN_API_KEY)}`
+    );
+    console.log(
+        `[ShellWatch] Webhook secret configured: ${Boolean(WEBHOOK_SECRET)}`
+    );
 });
 
