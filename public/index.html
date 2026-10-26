@@ -478,82 +478,234 @@ wss.on('connection', (ws) => {
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
 
-    <!-- JAVASCRIPT APPLICATION LOGIC -->
-    <script>
-        /**
-         * ====================================================================
-         * 1. INITIAL SEED DATASET & GEOLOCATION DATABASE
-         * ====================================================================
-         */
-        const INITIAL_THREAT_SEEDS = [
-            // { id: "e1", country: "United States", code: "US", flag: "🇺🇸", lat: 37.0902, lng: -95.7129, domain: "tech-corp-portal.com", ip: "104.21.88.12", shellType: "WP", payload: "WSO WebShell v4.2.5", severity: "Critical", time: "1 min ago", path: "/wp-content/plugins/revslider/db.php", source: "URLScan Live" },
-            // { id: "e2", country: "United States", code: "US", flag: "🇺🇸", lat: 34.0522, lng: -118.2437, domain: "la-finance-group.net", ip: "172.67.142.9", shellType: "PHP", payload: "c99shell.php Injector", severity: "High", time: "3 mins ago", path: "/images/uploads/alfa.php", source: "Honeypot Network" },
-            // { id: "e3", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 14.5995, lng: 120.9842, domain: "manila-trade-hub.ph", ip: "112.198.45.101", shellType: "OTHER", payload: "r57shell / PrivEsc Exploit", severity: "Critical", time: "Just now", path: "/assets/css/index.php", source: "URLScan Live" },
-            // { id: "e4", country: "Philippines", code: "PH", flag: "🇵🇭", lat: 10.3157, lng: 123.8854, domain: "cebu-logistics-corp.com", ip: "120.28.90.14", shellType: "WP", payload: "WP-Config Backdoor Dropper", severity: "Medium", time: "8 mins ago", path: "/wp-content/uploads/cmd.php", source: "Threat Stream" },
-            // { id: "e5", country: "Germany", code: "DE", flag: "🇩🇪", lat: 51.1657, lng: 10.4515, domain: "berlin-auto-engineering.de", ip: "85.214.132.88", shellType: "PHP", payload: "Alfa K1ng WebShell", severity: "High", time: "5 mins ago", path: "/vendor/phpunit/util.php", source: "URLScan Live" },
-            // { id: "e6", country: "Japan", code: "JP", flag: "🇯🇵", lat: 35.6762, lng: 139.6503, domain: "tokyo-cyber-systems.jp", ip: "202.214.192.6", shellType: "WP", payload: "XMLRPC Admin Takeover", severity: "High", time: "12 mins ago", path: "/xmlrpc.php", source: "Threat Stream" },
-            // { id: "e7", country: "United Kingdom", code: "GB", flag: "🇬🇧", lat: 55.3781, lng: -3.4360, domain: "london-fintech-assets.co.uk", ip: "51.140.88.23", shellType: "OTHER", payload: "IndoXploit Bypasser Shell", severity: "Critical", time: "2 mins ago", path: "/public/downloads/shell.php", source: "URLScan Live" },
-            // { id: "e8", country: "Brazil", code: "BR", flag: "🇧🇷", lat: -14.2350, lng: -51.9253, domain: "rio-commerce-store.com.br", ip: "177.12.99.201", shellType: "WP", payload: "WooCommerce RCE Exploit Shell", severity: "High", time: "15 mins ago", path: "/wp-content/uploads/mini-shell.php", source: "Honeypot Network" },
-            // { id: "e9", country: "Australia", code: "AU", flag: "🇦🇺", lat: -25.2744, lng: 133.7751, domain: "sydney-mining-group.com.au", ip: "139.130.4.5", shellType: "PHP", payload: "MARIJUANA WebShell", severity: "Medium", time: "22 mins ago", path: "/system/logs/gate.php", source: "Threat Stream" },
-            // { id: "e10", country: "India", code: "IN", flag: "🇮🇳", lat: 20.5937, lng: 78.9629, domain: "mumbai-tech-solutions.in", ip: "103.21.124.50", shellType: "WP", payload: "Elementor RCE WebShell", severity: "Critical", time: "4 mins ago", path: "/wp-content/plugins/elementor/shell.php", source: "URLScan Live" }
-        ];
+<script src="https://shellwatch.onrender.com/socket.io/socket.io.js"></script>
 
-        // Known Country Geo Center Fallbacks
-        const COUNTRY_GEO = {
-            "US": { country: "United States", flag: "🇺🇸", lat: 37.0902, lng: -95.7129 },
-            "PH": { country: "Philippines", flag: "🇵🇭", lat: 14.5995, lng: 120.9842 },
-            "DE": { country: "Germany", flag: "🇩🇪", lat: 51.1657, lng: 10.4515 },
-            "JP": { country: "Japan", flag: "🇯🇵", lat: 35.6762, lng: 139.6503 },
-            "GB": { country: "United Kingdom", flag: "🇬🇧", lat: 55.3781, lng: -3.4360 },
-            "BR": { country: "Brazil", flag: "🇧🇷", lat: -14.2350, lng: -51.9253 },
-            "AU": { country: "Australia", flag: "🇦🇺", lat: -25.2744, lng: 133.7751 },
-            "IN": { country: "India", flag: "🇮🇳", lat: 20.5937, lng: 78.9629 },
-            "NL": { country: "Netherlands", flag: "🇳🇱", lat: 52.1326, lng: 5.2913 },
-            "SG": { country: "Singapore", flag: "🇸🇬", lat: 1.3521, lng: 103.8198 },
-            "CA": { country: "Canada", flag: "🇨🇦", lat: 56.1304, lng: -106.3468 },
-            "FR": { country: "France", flag: "🇫🇷", lat: 46.2276, lng: 2.2137 }
+<script>
+(() => {
+    'use strict';
+
+    // =========================================================
+    // 1. CONFIGURATION AND DATA
+    // =========================================================
+
+    const API_BASE = 'https://shellwatch.onrender.com';
+    const GLOBE_RADIUS = 5;
+    const MAX_LOG_ENTRIES = 30;
+    const MAX_RECORDS = 500;
+
+    const INITIAL_THREAT_SEEDS = [];
+
+    const COUNTRY_GEO = {
+        US: { country: 'United States', flag: '🇺🇸', lat: 37.0902, lng: -95.7129 },
+        PH: { country: 'Philippines', flag: '🇵🇭', lat: 12.8797, lng: 121.7740 },
+        DE: { country: 'Germany', flag: '🇩🇪', lat: 51.1657, lng: 10.4515 },
+        JP: { country: 'Japan', flag: '🇯🇵', lat: 36.2048, lng: 138.2529 },
+        GB: { country: 'United Kingdom', flag: '🇬🇧', lat: 55.3781, lng: -3.4360 },
+        BR: { country: 'Brazil', flag: '🇧🇷', lat: -14.2350, lng: -51.9253 },
+        AU: { country: 'Australia', flag: '🇦🇺', lat: -25.2744, lng: 133.7751 },
+        IN: { country: 'India', flag: '🇮🇳', lat: 20.5937, lng: 78.9629 },
+        NL: { country: 'Netherlands', flag: '🇳🇱', lat: 52.1326, lng: 5.2913 },
+        SG: { country: 'Singapore', flag: '🇸🇬', lat: 1.3521, lng: 103.8198 },
+        CA: { country: 'Canada', flag: '🇨🇦', lat: 56.1304, lng: -106.3468 },
+        FR: { country: 'France', flag: '🇫🇷', lat: 46.2276, lng: 2.2137 }
+    };
+
+    const state = {
+        exploits: [...INITIAL_THREAT_SEEDS],
+        filteredExploits: [...INITIAL_THREAT_SEEDS],
+        activeFilter: 'ALL',
+        searchQuery: '',
+        selectedExploitId: null,
+        autoRotateGlobe: true,
+        mode: 'STREAM',
+        isFetchingApi: false
+    };
+
+    let scene = null;
+    let camera = null;
+    let renderer = null;
+    let globeGroup = null;
+    let markersGroup = null;
+    let arcsGroup = null;
+    let raycaster = null;
+    let mouse = null;
+    let globeReady = false;
+    let isDragging = false;
+    let pointerDown = null;
+    let previousMousePosition = { x: 0, y: 0 };
+    let targetRotation = { x: 0, y: 0 };
+    let shellWatchSocket = null;
+
+    // =========================================================
+    // 2. SAFE HELPERS
+    // =========================================================
+
+    function $(id) {
+        return document.getElementById(id);
+    }
+
+    function setText(id, value) {
+        const element = $(id);
+        if (element) {
+            element.textContent = value == null ? '' : String(value);
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character]);
+    }
+
+    function validCoordinates(lat, lng) {
+        return Number.isFinite(lat) &&
+            Number.isFinite(lng) &&
+            lat >= -90 && lat <= 90 &&
+            lng >= -180 && lng <= 180;
+    }
+
+    function normalizeRecord(input = {}) {
+        const code = String(input.code || '').toUpperCase();
+        const geo = COUNTRY_GEO[code];
+
+        const lat = Number(input.lat);
+        const lng = Number(input.lng);
+
+        const coordinatesValid =
+            input.lat !== null &&
+            input.lat !== undefined &&
+            input.lng !== null &&
+            input.lng !== undefined &&
+            input.lat !== '' &&
+            input.lng !== '' &&
+            validCoordinates(lat, lng);
+
+        return {
+            ...input,
+            id: String(input.id || `event_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+            domain: String(input.domain || 'Unknown domain'),
+            ip: String(input.ip || 'Unknown'),
+            country: String(input.country || geo?.country || 'Unknown'),
+            code,
+            flag: String(input.flag || geo?.flag || '🌐'),
+            lat: coordinatesValid ? lat : (geo?.lat ?? null),
+            lng: coordinatesValid ? lng : (geo?.lng ?? null),
+            shellType: String(input.shellType || 'OTHER'),
+            payload: String(input.payload || 'Unspecified event'),
+            severity: String(input.severity || 'Review'),
+            time: String(input.time || 'Unknown'),
+            path: String(input.path || ''),
+            source: String(input.source || 'Unknown source')
+        };
+    }
+
+    function addRecord(input) {
+        const record = normalizeRecord(input);
+
+        if (state.exploits.some(item => item.id === record.id)) {
+            return false;
+        }
+
+        state.exploits.unshift(record);
+
+        if (state.exploits.length > MAX_RECORDS) {
+            state.exploits.length = MAX_RECORDS;
+        }
+
+        applyFilters();
+        return true;
+    }
+
+    // =========================================================
+    // 3. ATTACK LOG
+    // =========================================================
+
+    function appendAttackLog(message, type = 'info') {
+        const feed = $('attackFeedLog');
+        if (!feed) {
+            console.log(`[ShellWatch ${type}] ${message}`);
+            return;
+        }
+
+        const entry = document.createElement('div');
+        entry.className = 'flex items-center space-x-2 text-[11px] leading-tight font-mono';
+
+        const timestamp = document.createElement('span');
+        timestamp.className = 'text-slate-600';
+        timestamp.textContent = `[${new Date().toLocaleTimeString()}]`;
+
+        const messageElement = document.createElement('span');
+        const classes = {
+            info: 'text-cyber-cyan',
+            critical: 'text-red-400 font-bold',
+            warning: 'text-amber-400',
+            success: 'text-emerald-400'
         };
 
-        // State Machine
-        let state = {
-            exploits: [...INITIAL_THREAT_SEEDS],
-            filteredExploits: [...INITIAL_THREAT_SEEDS],
-            activeFilter: 'ALL',
-            searchQuery: '',
-            selectedExploitId: null,
-            autoRotateGlobe: true,
-            mode: 'STREAM', // 'STREAM' or 'API'
-            isFetchingApi: false
-        };
+        messageElement.className = classes[type] || classes.info;
+        messageElement.textContent = String(message);
 
-        /**
-         * ====================================================================
-         * 2. THREE.JS 3D INTERACTIVE GLOBE ENGINE
-         * ====================================================================
-         */
-        let scene, camera, renderer, globeGroup, markersGroup, arcsGroup, raycaster, mouse;
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let targetRotation = { x: 0, y: 0 };
-        const GLOBE_RADIUS = 5;
+        entry.append(timestamp, messageElement);
+        feed.prepend(entry);
 
-        function init3DGlobe() {
-            const container = document.getElementById('globeContainer');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+        while (feed.children.length > MAX_LOG_ENTRIES) {
+            feed.lastElementChild?.remove();
+        }
+    }
 
+    // =========================================================
+    // 4. THREE.JS GLOBE
+    // =========================================================
+
+    function init3DGlobe() {
+        const container = $('globeContainer');
+
+        if (!container) {
+            console.warn('ShellWatch: #globeContainer was not found.');
+            return;
+        }
+
+        if (typeof THREE === 'undefined') {
+            appendAttackLog(
+                'THREE.js is missing. Check that the Three.js library is loaded before this script.',
+                'warning'
+            );
+            return;
+        }
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        if (width <= 0 || height <= 0) {
+            appendAttackLog('Globe container has no visible dimensions.', 'warning');
+            return;
+        }
+
+        try {
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x050811, 0.035);
 
             camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-            camera.position.z = 15;
+            camera.position.set(0, 0, 15);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+
             renderer.setSize(width, height);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            container.appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+            container.replaceChildren(renderer.domElement);
+
+            renderer.domElement.style.display = 'block';
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
 
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
@@ -563,776 +715,987 @@ wss.on('connection', (ws) => {
 
             markersGroup = new THREE.Group();
             arcsGroup = new THREE.Group();
+
             globeGroup.add(markersGroup);
             globeGroup.add(arcsGroup);
 
-            // 1. Core Sphere
-            const sphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
-            const sphereMat = new THREE.MeshPhongMaterial({
-                color: 0x091124,
-                emissive: 0x02050e,
-                specular: 0x00f0ff,
-                shininess: 30,
-                transparent: true,
-                opacity: 0.95
-            });
-            const globeMesh = new THREE.Mesh(sphereGeo, sphereMat);
-            globeGroup.add(globeMesh);
+            const sphere = new THREE.Mesh(
+                new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64),
+                new THREE.MeshPhongMaterial({
+                    color: 0x091124,
+                    emissive: 0x02050e,
+                    specular: 0x00f0ff,
+                    shininess: 30,
+                    transparent: true,
+                    opacity: 0.95
+                })
+            );
+            globeGroup.add(sphere);
 
-            // 2. Wireframe Overlay
-            const wireGeo = new THREE.SphereGeometry(GLOBE_RADIUS + 0.02, 36, 36);
-            const wireMat = new THREE.MeshBasicMaterial({
-                color: 0x00f0ff,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.12
-            });
-            globeGroup.add(new THREE.Mesh(wireGeo, wireMat));
+            globeGroup.add(new THREE.Mesh(
+                new THREE.SphereGeometry(GLOBE_RADIUS + 0.02, 36, 36),
+                new THREE.MeshBasicMaterial({
+                    color: 0x00f0ff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.12
+                })
+            ));
 
-            // 3. Atmosphere Glow Ring
-            const atmosphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS + 0.35, 32, 32);
-            const atmosphereMat = new THREE.MeshBasicMaterial({
-                color: 0x00f0ff,
-                side: THREE.BackSide,
-                transparent: true,
-                opacity: 0.07
-            });
-            globeGroup.add(new THREE.Mesh(atmosphereGeo, atmosphereMat));
+            globeGroup.add(new THREE.Mesh(
+                new THREE.SphereGeometry(GLOBE_RADIUS + 0.35, 32, 32),
+                new THREE.MeshBasicMaterial({
+                    color: 0x00f0ff,
+                    side: THREE.BackSide,
+                    transparent: true,
+                    opacity: 0.07
+                })
+            ));
 
-            // Lights
             scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const dirLight = new THREE.DirectionalLight(0x00f0ff, 1.6);
-            dirLight.position.set(10, 10, 10);
-            scene.add(dirLight);
 
-            const redDirLight = new THREE.DirectionalLight(0xff0055, 1.2);
-            redDirLight.position.set(-10, -10, -5);
-            scene.add(redDirLight);
+            const light = new THREE.DirectionalLight(0x00f0ff, 1.6);
+            light.position.set(10, 10, 10);
+            scene.add(light);
 
-            renderGlobeMarkers();
-            renderConnectingArcs();
+            const redLight = new THREE.DirectionalLight(0xff0055, 1.2);
+            redLight.position.set(-10, -10, -5);
+            scene.add(redLight);
 
             setupGlobeControls(container);
+
+            globeReady = true;
+            applyFilters();
             animateGlobe();
 
             window.addEventListener('resize', onWindowResize);
+
+        } catch (error) {
+            console.error('Globe initialization failed:', error);
+            appendAttackLog(`Globe initialization failed: ${error.message}`, 'warning');
         }
-
-        function latLngToVector3(lat, lng, radius) {
-            const phi = (90 - lat) * (Math.PI / 180);
-            const theta = (lng + 180) * (Math.PI / 180);
-
-            const x = -(radius * Math.sin(phi) * Math.cos(theta));
-            const z = (radius * Math.sin(phi) * Math.sin(theta));
-            const y = (radius * Math.cos(phi));
-
-            return new THREE.Vector3(x, y, z);
-        }
-
-        function renderGlobeMarkers() {
-            while (markersGroup.children.length > 0) {
-                markersGroup.remove(markersGroup.children[0]);
-            }
-
-            state.filteredExploits.forEach((exploit) => {
-                const pos = latLngToVector3(exploit.lat, exploit.lng, GLOBE_RADIUS + 0.06);
-
-                let color = 0xff0055; // Red default
-                if (exploit.shellType === 'WP') color = 0x00f0ff; // Cyan WP
-                if (exploit.shellType === 'PHP') color = 0xab00ff; // Purple PHP
-
-                // Pin Sphere
-                const pinGeo = new THREE.SphereGeometry(0.12, 16, 16);
-                const pinMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 });
-                const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-                pinMesh.position.copy(pos);
-
-                // Pulsing Ring
-                const ringGeo = new THREE.RingGeometry(0.16, 0.28, 16);
-                const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-                ringMesh.position.copy(pos);
-                ringMesh.lookAt(new THREE.Vector3(0, 0, 0));
-
-                const container = new THREE.Group();
-                container.add(pinMesh);
-                container.add(ringMesh);
-                container.userData = exploit;
-
-                markersGroup.add(container);
-            });
-        }
-
-        function renderConnectingArcs() {
-            while (arcsGroup.children.length > 0) {
-                arcsGroup.remove(arcsGroup.children[0]);
-            }
-
-            if (state.filteredExploits.length < 2) return;
-
-            for (let i = 0; i < Math.min(state.filteredExploits.length - 1, 12); i += 2) {
-                const start = state.filteredExploits[i];
-                const end = state.filteredExploits[i + 1];
-
-                const v1 = latLngToVector3(start.lat, start.lng, GLOBE_RADIUS);
-                const v2 = latLngToVector3(end.lat, end.lng, GLOBE_RADIUS);
-
-                const distance = v1.distanceTo(v2);
-                const mid = v1.clone().add(v2).multiplyScalar(0.5);
-                const midLength = mid.length();
-                mid.normalize().multiplyScalar(midLength + distance * 0.3);
-
-                const curve = new THREE.QuadraticBezierCurve3(v1, mid, v2);
-                const points = curve.getPoints(35);
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-                const material = new THREE.LineBasicMaterial({
-                    color: i % 2 === 0 ? 0xff0055 : 0x00f0ff,
-                    transparent: true,
-                    opacity: 0.4,
-                    linewidth: 1
-                });
-
-                arcsGroup.add(new THREE.Line(geometry, material));
-            }
-        }
-
-        function setupGlobeControls(container) {
-            container.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
-
-            container.addEventListener('mousemove', (e) => {
-                const rect = container.getBoundingClientRect();
-                mouse.x = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
-                mouse.y = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
-
-                if (isDragging) {
-                    const deltaX = e.clientX - previousMousePosition.x;
-                    const deltaY = e.clientY - previousMousePosition.y;
-
-                    globeGroup.rotation.y += deltaX * 0.005;
-                    globeGroup.rotation.x += deltaY * 0.005;
-
-                    previousMousePosition = { x: e.clientX, y: e.clientY };
-                    state.autoRotateGlobe = false;
-                } else {
-                    checkMarkerHover(e);
-                }
-            });
-
-            window.addEventListener('mouseup', () => { isDragging = false; });
-
-            container.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                camera.position.z += e.deltaY * 0.01;
-                camera.position.z = Math.max(8, Math.min(camera.position.z, 25));
-            });
-
-            container.addEventListener('click', () => {
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(markersGroup.children, true);
-
-                if (intersects.length > 0) {
-                    let target = intersects[0].object;
-                    while (target.parent && !target.userData.id) {
-                        target = target.parent;
-                    }
-                    if (target.userData && target.userData.id) {
-                        selectExploitTarget(target.userData.id, true);
-                    }
-                }
-            });
-        }
-
-        function checkMarkerHover(e) {
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(markersGroup.children, true);
-            const tooltip = document.getElementById('globeTooltip');
-
-            if (intersects.length > 0) {
-                let target = intersects[0].object;
-                while (target.parent && !target.userData.id) {
-                    target = target.parent;
-                }
-
-                if (target.userData && target.userData.id) {
-                    const data = target.userData;
-                    document.getElementById('ttDomain').textContent = data.domain;
-                    document.getElementById('ttCountry').textContent = `${data.flag || '🌐'} ${data.country}`;
-                    document.getElementById('ttShell').textContent = `${data.shellType} - ${data.payload}`;
-                    document.getElementById('ttIp').textContent = data.ip;
-                    document.getElementById('ttSource').textContent = data.source || 'Live Feed';
-
-                    tooltip.style.left = `${e.clientX + 15}px`;
-                    tooltip.style.top = `${e.clientY + 15}px`;
-                    tooltip.classList.remove('hidden');
-                    document.body.style.cursor = 'pointer';
-                    return;
-                }
-            }
-
-            tooltip.classList.add('hidden');
-            document.body.style.cursor = 'default';
-        }
-
-        function rotateGlobeToLocation(lat, lng) {
-            const phi = (90 - lat) * (Math.PI / 180);
-            const theta = (lng + 180) * (Math.PI / 180);
-
-            targetRotation.x = phi - Math.PI / 2;
-            targetRotation.y = -theta - Math.PI / 2;
-            state.autoRotateGlobe = false;
-        }
-
-        function animateGlobe() {
-            requestAnimationFrame(animateGlobe);
-
-            if (state.autoRotateGlobe) {
-                globeGroup.rotation.y += 0.002;
-            } else if (targetRotation.x !== 0 || targetRotation.y !== 0) {
-                globeGroup.rotation.x += (targetRotation.x - globeGroup.rotation.x) * 0.05;
-                globeGroup.rotation.y += (targetRotation.y - globeGroup.rotation.y) * 0.05;
-            }
-
-            markersGroup.children.forEach(group => {
-                if (group.children[1]) {
-                    const ring = group.children[1];
-                    ring.scale.x = 1 + Math.sin(Date.now() * 0.004) * 0.25;
-                    ring.scale.y = 1 + Math.sin(Date.now() * 0.004) * 0.25;
-                }
-            });
-
-            renderer.render(scene, camera);
-        }
-
-        function onWindowResize() {
-            const container = document.getElementById('globeContainer');
-            if (!container) return;
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
-
-
- 
-async function fetchLiveURLScanThreats(
-    query = 'filename:shell.php OR filename:wso.php OR wp-content'
-) {
-    if (state.isFetchingApi) return;
-
-    state.isFetchingApi = true;
-
-    const loader = document.getElementById('loaderSpinner');
-
-    if (loader) {
-        loader.classList.remove('hidden');
     }
 
-    appendAttackLog(
-        `URLSCAN: Searching historical scan records for "${query}"...`,
-        'info'
-    );
+    function latLngToVector3(lat, lng, radius) {
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = (lng + 180) * Math.PI / 180;
 
-    try {
-        const apiBase = 'https://shellwatch.onrender.com';
+        return new THREE.Vector3(
+            -(radius * Math.sin(phi) * Math.cos(theta)),
+            radius * Math.cos(phi),
+            radius * Math.sin(phi) * Math.sin(theta)
+        );
+    }
 
-        const response = await fetch(
-            `${apiBase}/api/urlscan-search?q=${encodeURIComponent(query)}`,
-            {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json'
+    function clearGroup(group) {
+        if (!group) return;
+
+        while (group.children.length) {
+            const child = group.children.pop();
+            group.remove(child);
+
+            child.traverse?.(object => {
+                object.geometry?.dispose?.();
+
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(material => material.dispose?.());
+                } else {
+                    object.material?.dispose?.();
                 }
-            }
+            });
+        }
+    }
+
+    function renderGlobeMarkers() {
+        if (!globeReady || !markersGroup) return;
+
+        clearGroup(markersGroup);
+
+        state.filteredExploits.forEach(exploit => {
+            if (!validCoordinates(exploit.lat, exploit.lng)) return;
+
+            let color = 0xff0055;
+
+            if (exploit.shellType === 'WP') color = 0x00f0ff;
+            if (exploit.shellType === 'PHP') color = 0xab00ff;
+
+            const position = latLngToVector3(
+                exploit.lat,
+                exploit.lng,
+                GLOBE_RADIUS + 0.06
+            );
+
+            const pin = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 16, 16),
+                new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.9
+                })
+            );
+            pin.position.copy(position);
+
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.16, 0.28, 16),
+                new THREE.MeshBasicMaterial({
+                    color,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.6
+                })
+            );
+            ring.position.copy(position);
+            ring.lookAt(new THREE.Vector3(0, 0, 0));
+
+            const marker = new THREE.Group();
+            marker.add(pin, ring);
+            marker.userData = { ...exploit };
+
+            markersGroup.add(marker);
+        });
+    }
+
+    function renderConnectingArcs() {
+        if (!globeReady || !arcsGroup) return;
+
+        clearGroup(arcsGroup);
+
+        const points = state.filteredExploits.filter(item =>
+            validCoordinates(item.lat, item.lng)
         );
 
-        const data = await response.json().catch(() => null);
+        if (points.length < 2) return;
 
-        if (!response.ok) {
-            throw new Error(
-                data?.error || `HTTP ${response.status}`
+        const limit = Math.min(points.length - 1, 12);
+
+        for (let i = 0; i < limit; i += 2) {
+            const start = points[i];
+            const end = points[i + 1];
+
+            if (!end) continue;
+
+            const v1 = latLngToVector3(start.lat, start.lng, GLOBE_RADIUS);
+            const v2 = latLngToVector3(end.lat, end.lng, GLOBE_RADIUS);
+
+            const distance = v1.distanceTo(v2);
+            const mid = v1.clone().add(v2).multiplyScalar(0.5);
+            const midLength = mid.length();
+
+            if (midLength > 0) {
+                mid.normalize().multiplyScalar(midLength + distance * 0.3);
+            }
+
+            const curve = new THREE.QuadraticBezierCurve3(v1, mid, v2);
+            const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(35));
+
+            arcsGroup.add(new THREE.Line(
+                geometry,
+                new THREE.LineBasicMaterial({
+                    color: i % 2 === 0 ? 0xff0055 : 0x00f0ff,
+                    transparent: true,
+                    opacity: 0.4
+                })
+            ));
+        }
+    }
+
+    function setupGlobeControls(container) {
+        const canvas = renderer.domElement;
+
+        canvas.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+
+            isDragging = false;
+            pointerDown = { x: event.clientX, y: event.clientY };
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        });
+
+        canvas.addEventListener('pointermove', event => {
+            const rect = canvas.getBoundingClientRect();
+
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            if (pointerDown) {
+                const dx = event.clientX - previousMousePosition.x;
+                const dy = event.clientY - previousMousePosition.y;
+
+                if (Math.abs(event.clientX - pointerDown.x) > 3 ||
+                    Math.abs(event.clientY - pointerDown.y) > 3) {
+                    isDragging = true;
+                }
+
+                if (isDragging) {
+                    globeGroup.rotation.y += dx * 0.005;
+                    globeGroup.rotation.x += dy * 0.005;
+                    state.autoRotateGlobe = false;
+                }
+
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            } else {
+                checkMarkerHover(event);
+            }
+        });
+
+        canvas.addEventListener('pointerup', () => {
+            pointerDown = null;
+        });
+
+        canvas.addEventListener('pointerleave', () => {
+            pointerDown = null;
+            isDragging = false;
+
+            const tooltip = $('globeTooltip');
+            if (tooltip) tooltip.classList.add('hidden');
+        });
+
+        canvas.addEventListener('click', () => {
+            if (isDragging || !raycaster || !mouse) return;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersections = raycaster.intersectObjects(
+                markersGroup.children,
+                true
+            );
+
+            if (!intersections.length) return;
+
+            let target = intersections[0].object;
+
+            while (target && !target.userData?.id) {
+                target = target.parent;
+            }
+
+            if (target?.userData?.id) {
+                selectExploitTarget(target.userData.id, true);
+            }
+        });
+
+        canvas.addEventListener('wheel', event => {
+            event.preventDefault();
+
+            camera.position.z = Math.max(
+                8,
+                Math.min(25, camera.position.z + event.deltaY * 0.01)
+            );
+        }, { passive: false });
+    }
+
+    function checkMarkerHover(event) {
+        if (!raycaster || !markersGroup) return;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersections = raycaster.intersectObjects(
+            markersGroup.children,
+            true
+        );
+
+        const tooltip = $('globeTooltip');
+        if (!tooltip) return;
+
+        if (intersections.length) {
+            let target = intersections[0].object;
+
+            while (target && !target.userData?.id) {
+                target = target.parent;
+            }
+
+            if (target?.userData?.id) {
+                const data = target.userData;
+
+                setText('ttDomain', data.domain);
+                setText('ttCountry', `${data.flag || '🌐'} ${data.country}`);
+                setText('ttShell', `${data.shellType} - ${data.payload}`);
+                setText('ttIp', data.ip);
+                setText('ttSource', data.source || 'Unknown source');
+
+                tooltip.style.left = `${event.clientX + 15}px`;
+                tooltip.style.top = `${event.clientY + 15}px`;
+                tooltip.classList.remove('hidden');
+                document.body.style.cursor = 'pointer';
+                return;
+            }
+        }
+
+        tooltip.classList.add('hidden');
+        document.body.style.cursor = 'default';
+    }
+
+    function rotateGlobeToLocation(lat, lng) {
+        if (!globeReady || !validCoordinates(lat, lng)) {
+            appendAttackLog('Cannot focus globe: this record has no valid coordinates.', 'warning');
+            return;
+        }
+
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = (lng + 180) * Math.PI / 180;
+
+        targetRotation.x = phi - Math.PI / 2;
+        targetRotation.y = -theta - Math.PI / 2;
+        state.autoRotateGlobe = false;
+    }
+
+    function animateGlobe() {
+        if (!globeReady) return;
+
+        requestAnimationFrame(animateGlobe);
+
+        if (state.autoRotateGlobe) {
+            globeGroup.rotation.y += 0.002;
+        } else {
+            globeGroup.rotation.x +=
+                (targetRotation.x - globeGroup.rotation.x) * 0.05;
+
+            globeGroup.rotation.y +=
+                (targetRotation.y - globeGroup.rotation.y) * 0.05;
+        }
+
+        markersGroup.children.forEach(marker => {
+            const ring = marker.children[1];
+            if (!ring) return;
+
+            const scale = 1 + Math.sin(Date.now() * 0.004) * 0.25;
+            ring.scale.set(scale, scale, 1);
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        const container = $('globeContainer');
+
+        if (!globeReady || !container || !camera || !renderer) return;
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        if (!width || !height) return;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+    }
+
+    // =========================================================
+    // 5. URLSCAN HISTORICAL SEARCH
+    // =========================================================
+
+    async function fetchLiveURLScanThreats(
+        query = 'filename:shell.php OR filename:wso.php OR wp-content'
+    ) {
+        if (state.isFetchingApi) return;
+
+        query = String(query || '').trim();
+
+        if (!query) {
+            appendAttackLog('Enter a URLScan search query first.', 'warning');
+            return;
+        }
+
+        state.isFetchingApi = true;
+
+        const loader = $('loaderSpinner');
+        if (loader) loader.classList.remove('hidden');
+
+        appendAttackLog(`URLSCAN: Searching for "${query}"...`, 'info');
+
+        try {
+            const endpoint = new URL('/api/urlscan-search', API_BASE);
+            endpoint.searchParams.set('q', query);
+
+            const response = await fetch(endpoint.toString(), {
+                method: 'GET',
+                headers: { Accept: 'application/json' }
+            });
+
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.error || `Request failed with HTTP ${response.status}`
+                );
+            }
+
+            if (!data || !Array.isArray(data.results)) {
+                throw new Error('The backend response does not contain a results array.');
+            }
+
+            if (data.results.length === 0) {
+                appendAttackLog(
+                    'URLSCAN: No matching historical scan records found.',
+                    'warning'
+                );
+                return;
+            }
+
+            let added = 0;
+
+            for (const item of data.results) {
+                const page = item?.page || {};
+                const task = item?.task || {};
+
+                let parsedUrl;
+
+                try {
+                    const candidateUrl = page.url || task.url;
+                    if (!candidateUrl) continue;
+
+                    parsedUrl = new URL(candidateUrl);
+
+                    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                        continue;
+                    }
+                } catch {
+                    continue;
+                }
+
+                const countryCode = String(
+                    page.country || ''
+                ).toUpperCase();
+
+                const geo = COUNTRY_GEO[countryCode];
+
+                const pathname = parsedUrl.pathname || '/';
+                const isPhpRelated =
+                    /\.php$/i.test(pathname) ||
+                    /(?:^|\/)wp-content(?:\/|$)/i.test(pathname);
+
+                const recordId = `urlscan_${item._id || parsedUrl.href}`;
+
+                const record = {
+                    id: recordId,
+                    domain: page.domain || parsedUrl.hostname || 'Unknown domain',
+                    ip: page.ip || 'Unknown',
+                    country: geo?.country || 'Unknown',
+                    code: countryCode,
+                    flag: geo?.flag || '🌐',
+                    lat: geo?.lat ?? null,
+                    lng: geo?.lng ?? null,
+                    shellType: isPhpRelated ? 'PHP-related URL' : 'URLScan observation',
+                    payload: page.title || pathname || 'URLScan record',
+                    severity: 'Review',
+                    time: task.time || 'Unknown',
+                    path: pathname,
+                    source: 'URLScan Historical Search'
+                };
+
+                if (addRecord(record)) {
+                    added++;
+                }
+            }
+
+            if (added) {
+                appendAttackLog(
+                    `URLSCAN: Added ${added} historical record(s) for review. These are not confirmed attacks.`,
+                    'success'
+                );
+            } else {
+                appendAttackLog(
+                    'URLSCAN: No new valid records were added.',
+                    'warning'
+                );
+            }
+
+        } catch (error) {
+            console.error('URLScan search error:', error);
+
+            let message = error.message || 'Unknown error';
+
+            if (error instanceof TypeError) {
+                message += '. Check backend availability, HTTPS, and CORS settings.';
+            }
+
+            appendAttackLog(`URLSCAN ERROR: ${message}`, 'warning');
+
+        } finally {
+            state.isFetchingApi = false;
+            if (loader) loader.classList.add('hidden');
+        }
+    }
+
+    // =========================================================
+    // 6. SIDEBAR AND RECORD SELECTION
+    // =========================================================
+
+    function renderSidebarCountryList() {
+        const tree = $('countryTreeList');
+        if (!tree) return;
+
+        tree.replaceChildren();
+
+        if (!state.filteredExploits.length) {
+            const empty = document.createElement('div');
+            empty.className = 'text-center py-8 text-slate-500 font-mono text-xs';
+            empty.textContent = 'No records match your current filters.';
+            tree.appendChild(empty);
+            return;
+        }
+
+        const grouped = new Map();
+
+        state.filteredExploits.forEach(item => {
+            const country = item.country || 'Unknown';
+
+            if (!grouped.has(country)) {
+                grouped.set(country, {
+                    country,
+                    flag: item.flag || '🌐',
+                    items: []
+                });
+            }
+
+            grouped.get(country).items.push(item);
+        });
+
+        for (const group of grouped.values()) {
+            const wrapper = document.createElement('div');
+            wrapper.className =
+                'border border-slate-800/80 rounded-xl bg-slate-900/40 overflow-hidden transition-all';
+
+            const header = document.createElement('button');
+            header.type = 'button';
+            header.className =
+                'country-header w-full flex items-center justify-between p-2.5 bg-slate-900/80 cursor-pointer hover:bg-slate-800/60 transition-colors';
+
+            header.innerHTML = `
+                <span class="flex items-center space-x-2.5">
+                    <span class="text-base">${escapeHtml(group.flag)}</span>
+                    <span class="font-bold text-xs text-slate-200 font-mono">${escapeHtml(group.country)}</span>
+                    <span class="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-400 font-mono border border-slate-700">${group.items.length}</span>
+                </span>
+                <span aria-hidden="true" class="country-chevron text-[10px] text-slate-500">▼</span>
+            `;
+
+            const body = document.createElement('div');
+            body.className = 'country-body p-1.5 space-y-1.5';
+
+            header.addEventListener('click', () => {
+                body.classList.toggle('hidden');
+            });
+
+            group.items.forEach(item => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.dataset.id = item.id;
+
+                const selected = state.selectedExploitId === item.id;
+
+                card.className =
+                    `exploit-card w-full text-left p-2.5 rounded-lg bg-slate-950/60 border ${
+                        selected
+                            ? 'border-cyber-cyan bg-cyber-cyan/10'
+                            : 'border-slate-800/60'
+                    } hover:border-slate-700 cursor-pointer transition-all`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="font-mono font-bold text-xs text-slate-200 truncate">${escapeHtml(item.domain)}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                            item.severity === 'Critical'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        }">${escapeHtml(item.severity)}</span>
+                    </div>
+                    <div class="text-[11px] font-mono text-slate-400 flex flex-wrap justify-between gap-1">
+                        <span>${escapeHtml(item.ip)}</span>
+                        <span class="text-[10px] text-slate-500">${escapeHtml(item.time)}</span>
+                    </div>
+                    <div class="mt-1 text-[10px] font-mono text-amber-300/90 truncate bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800">${escapeHtml(item.payload)}</div>
+                `;
+
+                card.addEventListener('click', () => {
+                    selectExploitTarget(item.id, true);
+                });
+
+                body.appendChild(card);
+            });
+
+            wrapper.append(header, body);
+            tree.appendChild(wrapper);
+        }
+    }
+
+    function selectExploitTarget(id, rotateGlobe = true) {
+        state.selectedExploitId = id;
+
+        const target = state.exploits.find(item => item.id === id);
+        if (!target) return;
+
+        renderSidebarCountryList();
+
+        const banner = $('selectedTargetBanner');
+
+        setText('targetDomain', target.domain);
+        setText('targetFlag', target.flag || '🌐');
+        setText('targetIp', target.ip);
+        setText('targetType', `${target.shellType} (${target.payload})`);
+
+        if (banner) banner.classList.remove('hidden');
+
+        if (rotateGlobe) {
+            rotateGlobeToLocation(target.lat, target.lng);
+        }
+
+        appendAttackLog(
+            `Selected record: ${target.domain} (${target.ip}) — ${target.source}`,
+            'info'
+        );
+    }
+
+    // =========================================================
+    // 7. FILTERS AND COUNTERS
+    // =========================================================
+
+    function updateStatsCounters() {
+        setText('statTotalSites', state.filteredExploits.length);
+
+        setText(
+            'statWpSites',
+            state.filteredExploits.filter(item => item.shellType === 'WP').length
+        );
+
+        setText(
+            'statPhpSites',
+            state.filteredExploits.filter(item => item.shellType === 'PHP').length
+        );
+
+        setText('countAll', state.exploits.length);
+
+        setText(
+            'countWP',
+            state.exploits.filter(item => item.shellType === 'WP').length
+        );
+
+        setText(
+            'countPHP',
+            state.exploits.filter(item => item.shellType === 'PHP').length
+        );
+
+        setText(
+            'countOther',
+            state.exploits.filter(item =>
+                !['WP', 'PHP'].includes(item.shellType)
+            ).length
+        );
+
+        // This is an illustrative UI metric, not a measured scan rate.
+        setText('statScanRate', '—');
+    }
+
+    function applyFilters() {
+        const query = state.searchQuery.trim().toLowerCase();
+
+        state.filteredExploits = state.exploits.filter(item => {
+            const type = item.shellType;
+
+            if (state.activeFilter === 'WP' && type !== 'WP') return false;
+            if (state.activeFilter === 'PHP' && type !== 'PHP') return false;
+            if (state.activeFilter === 'OTHER' && ['WP', 'PHP'].includes(type)) return false;
+
+            if (!query) return true;
+
+            return [
+                item.domain,
+                item.ip,
+                item.country,
+                item.payload,
+                item.path,
+                item.source
+            ].some(value => String(value || '').toLowerCase().includes(query));
+        });
+
+        renderSidebarCountryList();
+        renderGlobeMarkers();
+        renderConnectingArcs();
+        updateStatsCounters();
+    }
+
+    // =========================================================
+    // 8. MANUAL DEMO RECORD
+    // =========================================================
+
+    function simulateLiveThreatInflow() {
+        // This creates a clearly labelled local demo, not a real threat.
+        const demo = {
+            id: `demo_${Date.now()}`,
+            country: 'Philippines',
+            code: 'PH',
+            flag: '🇵🇭',
+            lat: 12.8797,
+            lng: 121.7740,
+            domain: 'demo.local',
+            ip: 'Not applicable',
+            shellType: 'OTHER',
+            payload: 'Manual demonstration record',
+            severity: 'Review',
+            time: new Date().toLocaleTimeString(),
+            path: '/',
+            source: 'Local Demo — Not a real attack'
+        };
+
+        if (addRecord(demo)) {
+            appendAttackLog(
+                'DEMO: Added a local sample record. No real attack was detected.',
+                'warning'
             );
         }
+    }
 
-        if (!data || !Array.isArray(data.results)) {
-            throw new Error('Invalid URLScan API response.');
-        }
+    // =========================================================
+    // 9. SOCKET.IO WEBHOOK EVENTS
+    // =========================================================
 
-        if (data.results.length === 0) {
+    function connectShellWatchSocket() {
+        if (typeof io !== 'function') {
             appendAttackLog(
-                'URLSCAN: No matching historical scan records found.',
+                'Socket.IO client library did not load. Check the script URL.',
                 'warning'
             );
             return;
         }
 
-        let added = 0;
-
-        data.results.forEach((item) => {
-            const page = item.page || {};
-
-            let parsedUrl;
-
-            try {
-                const candidateUrl = page.url || item.task?.url;
-
-                if (!candidateUrl) return;
-
-                parsedUrl = new URL(candidateUrl);
-
-                if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-                    return;
-                }
-            } catch {
-                return;
-            }
-
-            const domain =
-                page.domain ||
-                parsedUrl.hostname ||
-                'unknown-host.com';
-
-            const countryCode = (
-                page.country ||
-                item.page?.country ||
-                ''
-            ).toUpperCase();
-
-            const geo = COUNTRY_GEO[countryCode];
-
-            // Use only values supplied by URLScan.
-            // Do not invent attacker IPs or locations.
-            const ip = page.ip || null;
-
-            const isPhpRelated =
-                /\.php$/i.test(parsedUrl.pathname) ||
-                /(?:^|\/)wp-content(?:\/|$)/i.test(parsedUrl.pathname);
-
-            const record = {
-                id: `urlscan_${item._id || parsedUrl.href}`,
-                country: geo?.country || 'Unknown',
-                code: countryCode,
-                flag: geo?.flag || '🌐',
-                lat: geo?.lat ?? null,
-                lng: geo?.lng ?? null,
-                domain: domain,
-                ip: ip || 'Unknown',
-                shellType: isPhpRelated
-                    ? 'PHP-related URL'
-                    : 'URLScan observation',
-                payload: page.title || parsedUrl.pathname || 'URLScan record',
-                severity: 'Review',
-                time: item.task?.time || 'Unknown',
-                path: parsedUrl.pathname,
-                source: 'URLScan Historical Search'
-            };
-
-            const exists = state.exploits.some(
-                existing => existing.id === record.id
-            );
-
-            if (!exists) {
-                state.exploits.unshift(record);
-                added++;
-            }
+        shellWatchSocket = io(API_BASE, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 10000,
+            timeout: 20000
         });
 
-        if (added > 0) {
+        shellWatchSocket.on('connect', () => {
             appendAttackLog(
-                `URLSCAN: Added ${added} historical scan record(s) for review.`,
+                'CONNECTED: ShellWatch webhook event channel is connected.',
                 'success'
             );
+        });
 
-            applyFilters();
-        } else {
+        shellWatchSocket.on('disconnect', reason => {
+            appendAttackLog(`Socket disconnected: ${reason}`, 'warning');
+        });
+
+        shellWatchSocket.on('connect_error', error => {
+            console.error('ShellWatch Socket.IO error:', error.message);
             appendAttackLog(
-                'URLSCAN: No new valid records to add.',
+                `Socket connection error: ${error.message}`,
                 'warning'
             );
-        }
+        });
 
-    } catch (error) {
-        console.error('URLScan search error:', error);
-
-        appendAttackLog(
-            `URLSCAN ERROR: ${error.message}`,
-            'warning'
-        );
-
-    } finally {
-        state.isFetchingApi = false;
-
-        if (loader) {
-            loader.classList.add('hidden');
-        }
-    }
-}
-
-    // Padayon dinhi ang imong existing code
-    // nga mo-process ug mo-display sa results.
-
-} catch (error) {
-    console.error('URLScan search error:', error);
-
-    appendAttackLog(
-        `URLSCAN ERROR: ${error.message}`,
-        'warning'
-    );
-}
-
- 
-
-        // Live Simulated Event Inflow Engine
-        function simulateLiveThreatInflow() {
-            // const domains = ['cyber-corp.net', 'finance-hub.ph', 'defense-net.de', 'tokyo-logistics.jp', 'manila-shop.com'];
-            const domains = [];
-            const countries = [COUNTRY_GEO["PH"], COUNTRY_GEO["US"], COUNTRY_GEO["DE"], COUNTRY_GEO["JP"], COUNTRY_GEO["GB"]];
-            const countryObj = countries[Math.floor(Math.random() * countries.length)];
-            const domain = domains[Math.floor(Math.random() * domains.length)];
-            const isWP = Math.random() > 0.4;
-
-            const id = 'stream_' + Date.now();
-            const threat = {
-                id: id,
-                country: countryObj.country,
-                code: countryObj.code,
-                flag: countryObj.flag,
-                lat: countryObj.lat + (Math.random() - 0.5) * 3,
-                lng: countryObj.lng + (Math.random() - 0.5) * 3,
-                domain: `${Math.floor(Math.random() * 89 + 10)}-${domain}`,
-                ip: `112.${Math.floor(Math.random() * 200)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-                shellType: isWP ? 'WP' : 'PHP',
-                payload: isWP ? 'WP-Config Backdoor Injection' : 'Alfa Team WebShell 2026',
-                severity: 'Critical',
-                time: 'Just now',
-                path: isWP ? '/wp-content/uploads/alfa.php' : '/images/cmd.php',
-                source: 'Telemetry Stream'
-            };
-
-            state.exploits.unshift(threat);
-            applyFilters();
-            appendAttackLog(`STREAM EVENT: [${threat.flag} ${threat.country}] Shell payload verified on ${threat.domain} (${threat.ip})`, 'critical');
-        }
-
-        /**
-         * ====================================================================
-         * 4. UI RENDERER & DOM HANDLERS
-         * ====================================================================
-         */
-        function renderSidebarCountryList() {
-            const treeContainer = document.getElementById('countryTreeList');
-            treeContainer.innerHTML = '';
-
-            if (state.filteredExploits.length === 0) {
-                treeContainer.innerHTML = `
-                    <div class="text-center py-8 text-slate-500 font-mono text-xs">
-                        <i class="fa-solid fa-radar text-2xl mb-2 text-slate-600 block"></i>
-                        No active threats match your filter criteria.
-                    </div>`;
+        shellWatchSocket.on('threat_alert', event => {
+            if (!event || typeof event !== 'object') {
+                appendAttackLog('Received an invalid webhook event.', 'warning');
                 return;
             }
 
-            const grouped = state.filteredExploits.reduce((acc, curr) => {
-                if (!acc[curr.country]) {
-                    acc[curr.country] = { country: curr.country, flag: curr.flag, items: [] };
-                }
-                acc[curr.country].items.push(curr);
-                return acc;
-            }, {});
+            const code = String(event.code || '').toUpperCase();
+            const geo = COUNTRY_GEO[code];
 
-            Object.values(grouped).forEach(group => {
-                const countryGroupEl = document.createElement('div');
-                countryGroupEl.className = 'border border-slate-800/80 rounded-xl bg-slate-900/40 overflow-hidden transition-all';
-
-                countryGroupEl.innerHTML = `
-                    <div class="country-header flex items-center justify-between p-2.5 bg-slate-900/80 cursor-pointer hover:bg-slate-800/60 transition-colors">
-                        <div class="flex items-center space-x-2.5">
-                            <span class="text-base">${group.flag || '🌐'}</span>
-                            <span class="font-bold text-xs text-slate-200 font-mono">${group.country}</span>
-                            <span class="px-1.5 py-0.2 rounded-full bg-slate-800 text-[10px] text-slate-400 font-mono border border-slate-700">${group.items.length}</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-500 transition-transform transform rotate-180"></i>
-                    </div>
-                    <div class="country-body p-1.5 space-y-1.5">
-                        ${group.items.map(item => `
-                            <div data-id="${item.id}" class="exploit-card p-2.5 rounded-lg bg-slate-950/60 border ${state.selectedExploitId === item.id ? 'border-cyber-cyan bg-cyber-cyan/10' : 'border-slate-800/60'} hover:border-slate-700 cursor-pointer transition-all">
-                                <div class="flex items-center justify-between mb-1">
-                                    <div class="flex items-center space-x-1.5 truncate">
-                                        <i class="${item.shellType === 'WP' ? 'fa-brands fa-wordpress text-blue-400' : 'fa-brands fa-php text-purple-400'} text-xs"></i>
-                                        <span class="font-mono font-bold text-xs ${state.selectedExploitId === item.id ? 'text-cyber-cyan' : 'text-slate-200'} truncate">${item.domain}</span>
-                                    </div>
-                                    <span class="text-[9px] px-1.5 py-0.5 rounded font-mono ${item.severity === 'Critical' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${item.severity}</span>
-                                </div>
-                                <div class="text-[11px] font-mono text-slate-400 flex flex-wrap items-center justify-between gap-1">
-                                    <span class="text-slate-300"><i class="fa-solid fa-network-wired text-[10px] mr-1 text-slate-500"></i>${item.ip}</span>
-                                    <span class="text-[10px] text-slate-500">${item.time}</span>
-                                </div>
-                                <div class="mt-1 text-[10px] font-mono text-red-400/90 truncate bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800">
-                                    <i class="fa-solid fa-bug mr-1 text-[9px]"></i>${item.payload}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-
-                const header = countryGroupEl.querySelector('.country-header');
-                const body = countryGroupEl.querySelector('.country-body');
-                const chevron = header.querySelector('.fa-chevron-down');
-
-                header.addEventListener('click', () => {
-                    body.classList.toggle('hidden');
-                    chevron.classList.toggle('rotate-180');
-                });
-
-                countryGroupEl.querySelectorAll('.exploit-card').forEach(card => {
-                    card.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        selectExploitTarget(card.getAttribute('data-id'), true);
-                    });
-                });
-
-                treeContainer.appendChild(countryGroupEl);
+            const record = normalizeRecord({
+                ...event,
+                id: event.id || `webhook_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                code,
+                country: event.country || geo?.country || 'Unknown',
+                flag: event.flag || geo?.flag || '🌐',
+                lat: event.lat ?? geo?.lat ?? null,
+                lng: event.lng ?? geo?.lng ?? null,
+                source: 'PHP Honeypot Webhook'
             });
-        }
 
-        function selectExploitTarget(id, rotateGlobe = true) {
-            state.selectedExploitId = id;
-            const target = state.exploits.find(x => x.id === id);
-            if (!target) return;
-
-            renderSidebarCountryList();
-
-            const banner = document.getElementById('selectedTargetBanner');
-            document.getElementById('targetDomain').textContent = target.domain;
-            document.getElementById('targetFlag').textContent = target.flag || '🌐';
-            document.getElementById('targetIp').textContent = target.ip;
-            document.getElementById('targetType').textContent = `${target.shellType} (${target.payload})`;
-            banner.classList.remove('hidden');
-
-            if (rotateGlobe) {
-                rotateGlobeToLocation(target.lat, target.lng);
-            }
-
-            appendAttackLog(`RADAR FOCUS: Rotated to ${target.domain} (${target.ip}) [${target.country}]`, 'info');
-        }
-
-        function updateStatsCounters() {
-            document.getElementById('statTotalSites').textContent = state.filteredExploits.length;
-            document.getElementById('statWpSites').textContent = state.filteredExploits.filter(x => x.shellType === 'WP').length;
-            document.getElementById('statPhpSites').textContent = state.filteredExploits.filter(x => x.shellType === 'PHP').length;
-
-            document.getElementById('countAll').textContent = state.exploits.length;
-            document.getElementById('countWP').textContent = state.exploits.filter(x => x.shellType === 'WP').length;
-            document.getElementById('countPHP').textContent = state.exploits.filter(x => x.shellType === 'PHP').length;
-            document.getElementById('countOther').textContent = state.exploits.filter(x => x.shellType === 'OTHER').length;
-
-            // Random subtle scan rate fluctuation
-            document.getElementById('statScanRate').textContent = (1.5 + Math.random() * 0.8).toFixed(1);
-        }
-
-        function applyFilters() {
-            let result = [...state.exploits];
-
-            if (state.activeFilter === 'WP') result = result.filter(x => x.shellType === 'WP');
-            if (state.activeFilter === 'PHP') result = result.filter(x => x.shellType === 'PHP');
-            if (state.activeFilter === 'OTHER') result = result.filter(x => x.shellType === 'OTHER');
-
-            if (state.searchQuery.trim() !== '') {
-                const q = state.searchQuery.toLowerCase();
-                result = result.filter(x =>
-                    x.domain.toLowerCase().includes(q) ||
-                    x.ip.includes(q) ||
-                    x.country.toLowerCase().includes(q) ||
-                    x.payload.toLowerCase().includes(q)
+            if (addRecord(record)) {
+                appendAttackLog(
+                    `WEBHOOK: Received a security event for ${record.domain} (${record.ip}). Verify the event details.`,
+                    'success'
                 );
             }
+        });
+    }
 
-            state.filteredExploits = result;
-            renderSidebarCountryList();
-            renderGlobeMarkers();
-            renderConnectingArcs();
-            updateStatsCounters();
+    // =========================================================
+    // 10. UI EVENT HANDLERS
+    // =========================================================
+
+    function bindClick(id, callback) {
+        const element = $(id);
+
+        if (!element) {
+            console.warn(`ShellWatch: Missing element #${id}`);
+            return;
         }
 
-        function appendAttackLog(message, type = 'info') {
-            const feedContainer = document.getElementById('attackFeedLog');
-            const entry = document.createElement('div');
-            entry.className = 'flex items-center space-x-2 text-[11px] leading-tight font-mono';
+        element.addEventListener('click', callback);
+    }
 
-            const timeStr = new Date().toLocaleTimeString();
-            let badgeClass = 'text-cyber-cyan';
-            if (type === 'critical') badgeClass = 'text-red-400 font-bold';
-            if (type === 'warning') badgeClass = 'text-amber-400';
-            if (type === 'success') badgeClass = 'text-emerald-400';
+    function initializeUI() {
+        const modeStreamBtn = $('modeStreamBtn');
+        const modeApiBtn = $('modeApiBtn');
+        const badge = $('dataModeBadge');
 
-            entry.innerHTML = `<span class="text-slate-600">[${timeStr}]</span> <span class="${badgeClass}">${message}</span>`;
-            feedContainer.prepend(entry);
-
-            if (feedContainer.children.length > 30) feedContainer.removeChild(feedContainer.lastChild);
-        }
-
-        /**
-         * ====================================================================
-         * 5. EVENT LISTENERS & APPLICATION BOOTSTRAP
-         * ====================================================================
-         */
-        document.addEventListener('DOMContentLoaded', () => {
-            init3DGlobe();
-            applyFilters();
-
-            // Mode Toggle
-            const modeStreamBtn = document.getElementById('modeStreamBtn');
-            const modeApiBtn = document.getElementById('modeApiBtn');
-            const badge = document.getElementById('dataModeBadge');
-
+        if (modeStreamBtn) {
             modeStreamBtn.addEventListener('click', () => {
                 state.mode = 'STREAM';
-                modeStreamBtn.className = "flex-1 py-1.5 px-2 rounded font-mono text-xs font-semibold border transition-all bg-cyber-cyan/10 border-cyber-cyan text-cyber-cyan";
-                modeApiBtn.className = "flex-1 py-1.5 px-2 rounded font-mono text-xs border transition-all border-transparent text-slate-400 hover:text-slate-200";
-                badge.textContent = "STREAM LIVE";
-                badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-                appendAttackLog("MODE SWITCH: Continuous Real-Time Telemetry Stream Activated.");
-            });
 
+                if (badge) {
+                    badge.textContent = 'WEBHOOK STREAM';
+                    badge.className =
+                        'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                }
+
+                appendAttackLog(
+                    'MODE: Webhook stream selected. No simulated events will be generated automatically.',
+                    'info'
+                );
+            });
+        }
+
+        if (modeApiBtn) {
             modeApiBtn.addEventListener('click', () => {
                 state.mode = 'API';
-                modeApiBtn.className = "flex-1 py-1.5 px-2 rounded font-mono text-xs font-semibold border transition-all bg-cyber-cyan/10 border-cyber-cyan text-cyber-cyan";
-                modeStreamBtn.className = "flex-1 py-1.5 px-2 rounded font-mono text-xs border transition-all border-transparent text-slate-400 hover:text-slate-200";
-                badge.textContent = "LIVE API";
-                badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30";
-                appendAttackLog("MODE SWITCH: Live URLScan Search Query API Engine Selected.");
-            });
 
-            // Filter Chips
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.filter-btn').forEach(b => {
-                        b.classList.remove('active', 'bg-cyber-cyan/10', 'border-cyber-cyan', 'text-cyber-cyan');
-                        b.classList.add('bg-slate-900', 'border-slate-800', 'text-slate-400');
-                    });
-                    const target = e.currentTarget;
-                    target.classList.add('active', 'bg-cyber-cyan/10', 'border-cyber-cyan', 'text-cyber-cyan');
-                    target.classList.remove('bg-slate-900', 'border-slate-800', 'text-slate-400');
-                    state.activeFilter = target.getAttribute('data-filter');
-                    applyFilters();
+                if (badge) {
+                    badge.textContent = 'URLSCAN SEARCH';
+                    badge.className =
+                        'text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30';
+                }
+
+                appendAttackLog(
+                    'MODE: URLScan historical search selected.',
+                    'info'
+                );
+            });
+        }
+
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.addEventListener('click', event => {
+                document.querySelectorAll('.filter-btn').forEach(item => {
+                    item.classList.remove(
+                        'active',
+                        'bg-cyber-cyan/10',
+                        'border-cyber-cyan',
+                        'text-cyber-cyan'
+                    );
+
+                    item.classList.add(
+                        'bg-slate-900',
+                        'border-slate-800',
+                        'text-slate-400'
+                    );
                 });
-            });
 
-            // Live Search Query Trigger
-            document.getElementById('btnExecuteFetch').addEventListener('click', () => {
-                const query = document.getElementById('liveSearchInput').value.trim() || 'filename:shell.php';
-                fetchLiveURLScanThreats(query);
-            });
+                const selected = event.currentTarget;
 
-            document.getElementById('liveSearchInput').addEventListener('keyup', (e) => {
-                state.searchQuery = e.target.value;
+                selected.classList.add(
+                    'active',
+                    'bg-cyber-cyan/10',
+                    'border-cyber-cyan',
+                    'text-cyber-cyan'
+                );
+
+                selected.classList.remove(
+                    'bg-slate-900',
+                    'border-slate-800',
+                    'text-slate-400'
+                );
+
+                state.activeFilter = selected.getAttribute('data-filter') || 'ALL';
                 applyFilters();
-                if (e.key === 'Enter') {
-                    fetchLiveURLScanThreats(e.target.value || 'filename:shell.php');
-                }
             });
-
-            // Top Target Card Close
-            document.getElementById('closeTargetBanner').addEventListener('click', () => {
-                document.getElementById('selectedTargetBanner').classList.add('hidden');
-                state.selectedExploitId = null;
-                renderSidebarCountryList();
-            });
-
-            // Controls
-            document.getElementById('btnInjectThreat').addEventListener('click', simulateLiveThreatInflow);
-
-            document.getElementById('btnAutoRotate').addEventListener('click', () => {
-                state.autoRotateGlobe = !state.autoRotateGlobe;
-            });
-
-            document.getElementById('btnResetView').addEventListener('click', () => {
-                camera.position.set(0, 0, 15);
-                targetRotation = { x: 0, y: 0 };
-                state.autoRotateGlobe = true;
-            });
-
-            // Sidebar Toggle
-            document.getElementById('toggleSidebar').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('-translate-x-full');
-                document.getElementById('sidebarToggleIcon').classList.toggle('rotate-180');
-            });
-
-            // Modal Setup Handlers
-            const modal = document.getElementById('backendModal');
-            document.getElementById('btnOpenBackendModal').addEventListener('click', () => modal.classList.remove('hidden'));
-            document.getElementById('btnCloseBackendModal').addEventListener('click', () => modal.classList.add('hidden'));
-            document.getElementById('btnCloseBackendModal2').addEventListener('click', () => modal.classList.add('hidden'));
-
-            // Automated Threat Stream Interval (Simulating Live Websocket Stream)
-            setInterval(() => {
-                if (state.mode === 'STREAM') {
-                    simulateLiveThreatInflow();
-                }
-            }, 6000);
-
-            appendAttackLog('SYSTEM: ShellWatch Threat Engine online.');
-            appendAttackLog('TELEMETRY: Listening for real-world URLScan queries & live backdoor events...');
         });
 
+        bindClick('btnExecuteFetch', () => {
+            const input = $('liveSearchInput');
+            const query = input?.value.trim() || 'filename:shell.php';
 
-const shellWatchSocket = io();
+            fetchLiveURLScanThreats(query);
+        });
 
-shellWatchSocket.on('connect', () => {
-    appendAttackLog('CONNECTED: Receiving ShellWatch webhook events.', 'success');
-});
+        const searchInput = $('liveSearchInput');
 
-shellWatchSocket.on('connect_error', (error) => {
-    console.error('ShellWatch Socket.IO error:', error.message);
-});
+        if (searchInput) {
+            searchInput.addEventListener('input', event => {
+                state.searchQuery = event.target.value || '';
+                applyFilters();
+            });
 
-shellWatchSocket.on('threat_alert', (event) => {
-    console.log('Webhook event received:', event);
+            searchInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    fetchLiveURLScanThreats(
+                        searchInput.value.trim() || 'filename:shell.php'
+                    );
+                }
+            });
+        }
 
-    const countryCode = event.code || '';
-    const geo = COUNTRY_GEO[countryCode];
+        bindClick('closeTargetBanner', () => {
+            $('selectedTargetBanner')?.classList.add('hidden');
+            state.selectedExploitId = null;
+            renderSidebarCountryList();
+        });
 
-    const record = {
-        ...event,
-        id: event.id || `webhook_${Date.now()}`,
-        country: event.country || geo?.country || 'Unknown',
-        code: countryCode,
-        flag: geo?.flag || '🌐',
-        lat: Number.isFinite(event.lat)
-            ? event.lat
-            : (geo?.lat ?? null),
-        lng: Number.isFinite(event.lng)
-            ? event.lng
-            : (geo?.lng ?? null),
-        source: 'PHP Honeypot Webhook'
-    };
+        bindClick('btnInjectThreat', simulateLiveThreatInflow);
 
-    // Avoid adding an event twice.
-    if (state.exploits.some(item => item.id === record.id)) {
-        return;
+        bindClick('btnAutoRotate', () => {
+            state.autoRotateGlobe = !state.autoRotateGlobe;
+
+            appendAttackLog(
+                `Globe auto-rotation ${state.autoRotateGlobe ? 'enabled' : 'disabled'}.`,
+                'info'
+            );
+        });
+
+        bindClick('btnResetView', () => {
+            if (camera) camera.position.set(0, 0, 15);
+
+            targetRotation = { x: 0, y: 0 };
+
+            if (globeGroup) {
+                globeGroup.rotation.set(0, 0, 0);
+            }
+
+            state.autoRotateGlobe = true;
+        });
+
+        bindClick('toggleSidebar', () => {
+            $('sidebar')?.classList.toggle('-translate-x-full');
+            $('sidebarToggleIcon')?.classList.toggle('rotate-180');
+        });
+
+        const modal = $('backendModal');
+
+        bindClick('btnOpenBackendModal', () => modal?.classList.remove('hidden'));
+        bindClick('btnCloseBackendModal', () => modal?.classList.add('hidden'));
+        bindClick('btnCloseBackendModal2', () => modal?.classList.add('hidden'));
     }
 
-    state.exploits.unshift(record);
+    // =========================================================
+    // 11. START APPLICATION
+    // =========================================================
 
-    // The globe renderer requires numeric coordinates.
-    if (Number.isFinite(record.lat) && Number.isFinite(record.lng)) {
+    function startShellWatch() {
+        initializeUI();
+        init3DGlobe();
         applyFilters();
-    } else {
-        renderSidebarCountryList();
-        updateStatsCounters();
+        connectShellWatchSocket();
+
+        appendAttackLog('SYSTEM: ShellWatch dashboard initialized.', 'success');
+        appendAttackLog(
+            'DATA: URLScan results are historical observations; webhook events depend on your PHP reporter.',
+            'info'
+        );
     }
 
-    appendAttackLog(
-        `WEBHOOK: Security event received for ${record.domain} (${record.ip})`,
-        'success'
-    );
-});
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startShellWatch, { once: true });
+    } else {
+        startShellWatch();
+    }
 
+})();
+</script>
 
-        
-    </script>
 </body>
 
 </html>
