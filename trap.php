@@ -1,49 +1,78 @@
+
 <?php
 /**
- * ShellWatch Honeypot Trap Sensor
- * Ibutang kini sa imong test server o honeypot directory.
- * Bisag kinsa nga mag-access o mag-upload diri mo-trigger dayon og webhook sa imong Globe!
+ * ShellWatch defensive event reporter.
+ * Call this only for a relevant, detected security event.
  */
 
-// Kuhaon ang IP address sa attacker/hacker
-$attacker_ip = $_SERVER['REMOTE_ADDR'];
+function shellwatch_report_event($event_type, $request_details = '') {
+    if (!function_exists('curl_init')) {
+        error_log('ShellWatch: PHP cURL extension is unavailable.');
+        return false;
+    }
 
-// Kung naay gipasa nga proxy headers (cloudflare/nginx reverse proxy)
-if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-    $attacker_ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
-} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-    $attacker_ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+    $webhook_url = 'https://shellwatch.onrender.com/api/webhook/attack';
+
+    // Configure these as environment variables on your server.
+    $secret = getenv('WEBHOOK_SECRET');
+
+    if (!$secret) {
+        error_log('ShellWatch: WEBHOOK_SECRET is missing.');
+        return false;
+    }
+
+    // Do not trust forwarded-IP headers unless your reverse proxy
+    // is explicitly configured and verified as trusted.
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        error_log('ShellWatch: Invalid client IP.');
+        return false;
+    }
+
+    $domain = $_SERVER['HTTP_HOST'] ?? 'Unknown';
+
+    // Avoid sending arbitrary request bodies, cookies or credentials.
+    $data = [
+        'ip'       => $ip,
+        'domain'   => $domain,
+        'shellType' => substr($event_type, 0, 100),
+        'payload'  => substr($request_details, 0, 500),
+    ];
+
+    $ch = curl_init($webhook_url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($data),
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-ShellWatch-Secret: ' . $secret,
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT        => 4,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+    ]);
+
+    $response = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if ($response === false) {
+        error_log('ShellWatch webhook failed: ' . curl_error($ch));
+    }
+
+    curl_close($ch);
+
+    if ($response === false || $status < 200 || $status >= 300) {
+        error_log('ShellWatch webhook returned HTTP ' . $status);
+        return false;
+    }
+
+    return true;
 }
 
-$target_domain = $_SERVER['HTTP_HOST'];
-$request_uri = $_SERVER['REQUEST_URI'];
-$method = $_SERVER['REQUEST_METHOD'];
-
-// Ilisdi kini sa imong tinuod nga Render Webhook URL!
-$webhook_url = 'https://shellwatch.onrender.com/api/webhook/attack';
-
-// Data nga i-padala sa imong Render backend
-$data = array(
-    'ip' => $attacker_ip,
-    'domain' => $target_domain,
-    'shellType' => 'WSO / PHP Backdoor Upload',
-    'payload' => $method . ' ' . $request_uri
-);
-
-$options = array(
-    'http' => array(
-        'header'  => "Content-type: application/json\r\n",
-        'method'  => 'POST',
-        'content' => json_encode($data),
-        'timeout' => 2
-    )
-);
-
-$context  = stream_context_create($options);
-@file_get_contents($webhook_url, false, $context);
-
-// (Opsyonal) Pwede nimo ipakita sa hacker nga "Forbidden" o blangko nga page aron dili nila maduda nga honeypot
-http_response_code(403);
-echo "Access Denied.";
-exit;
-?>
+// Example: call this only after your security scanner
+// has identified a relevant event.
+// shellwatch_report_event('Suspicious PHP upload', 'Security event ID: 123');
