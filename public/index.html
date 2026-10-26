@@ -902,31 +902,44 @@ async function fetchLiveURLScanThreats(
         'info'
     );
 
-    try {
-        // Search through your own Node.js backend.
-        const response = await fetch(
-            `/api/urlscan-search?q=${encodeURIComponent(query)}`
+try {
+    const apiBase = 'https://shellwatch.onrender.com';
+
+    const response = await fetch(
+        `${apiBase}/api/urlscan-search?q=${encodeURIComponent(query)}`
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            data?.error || `HTTP ${response.status}`
         );
+    }
 
-        const data = await response.json().catch(() => null);
+    if (!data || !Array.isArray(data.results)) {
+        throw new Error('Invalid URLScan response');
+    }
 
-        if (!response.ok) {
-            throw new Error(
-                data?.error || `HTTP ${response.status}`
-            );
-        }
+    if (data.results.length === 0) {
+        appendAttackLog(
+            'URLSCAN: No matching scan records found.',
+            'warning'
+        );
+        return;
+    }
 
-        if (!data || !Array.isArray(data.results)) {
-            throw new Error('Invalid URLScan response');
-        }
+    // Padayon dinhi ang imong existing code
+    // nga mo-process ug mo-display sa results.
 
-        if (data.results.length === 0) {
-            appendAttackLog(
-                'URLSCAN: No matching scan records found.',
-                'warning'
-            );
-            return;
-        }
+} catch (error) {
+    console.error('URLScan search error:', error);
+
+    appendAttackLog(
+        `URLSCAN ERROR: ${error.message}`,
+        'warning'
+    );
+}
 
         let added = 0;
 
