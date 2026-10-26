@@ -185,3 +185,70 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
     console.log(`ShellWatch listening on port ${PORT}`);
 });
+
+
+
+
+app.get('/api/urlscan-search', async (req, res) => {
+    try {
+        const rawDomain = req.query.domain;
+
+        if (typeof rawDomain !== 'string' || rawDomain.length > 253) {
+            return res.status(400).json({
+                error: 'A valid domain is required'
+            });
+        }
+
+        // Accept a domain only, not an arbitrary URL.
+        const domain = rawDomain.trim().toLowerCase();
+
+        if (
+            domain.includes('/') ||
+            domain.includes(':') ||
+            !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)
+        ) {
+            return res.status(400).json({
+                error: 'Invalid domain format'
+            });
+        }
+
+        const headers = {};
+        if (process.env.URLSCAN_API_KEY) {
+            headers['api-key'] = process.env.URLSCAN_API_KEY;
+        }
+
+        const response = await axios.get(
+            'https://urlscan.io/api/v1/search/',
+            {
+                params: {
+                    q: `page.domain:${domain}`,
+                    size: 8
+                },
+                headers,
+                timeout: 12000
+            }
+        );
+
+        return res.json({
+            status: 'success',
+            domain,
+            total: response.data.total ?? 0,
+            results: response.data.results ?? []
+        });
+
+    } catch (error) {
+        const status = error.response?.status || 502;
+
+        console.error(
+            'URLScan search failed:',
+            status,
+            error.message
+        );
+
+        return res.status(502).json({
+            error: 'Unable to retrieve URLScan results',
+            upstreamStatus: status
+        });
+    }
+});
+
